@@ -1,0 +1,18 @@
+[package]
+name = "rpc_macros"
+version = "0.1.0"
+authors = ["Jeremy Letang <letang.jeremy@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Macros to auto-generate rpc implementations"
+repository = "https://github.com/jeremyletan/rpc"
+documentation = "https://github.com/jeremyletang/rpc"
+keywords = ["rpc", "http"]
+include = ["Cargo.toml", "src/**/*.rs"]
+
+[lib]
+name = "rpc_macros"
+plugin = true
+
+[dependencies]
+clippy = { version = "^0.*", optional = true }
+rpc_codegen = { version = "*", path = "../rpc_codegen" }
