@@ -13,6 +13,7 @@ use syntax::ast::*;
 use syntax::codemap::Span;
 use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::ptr::P;
+use syntax::ext::build::AstBuilder;
 
 fn expand_rpc_service(cx: &mut ExtCtxt,
     span: Span,
@@ -23,15 +24,28 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
     match annotatable {
         &Annotatable::Item(ref i) => {
             match &(*i).node {
-                &ItemKind::Impl(_, _, _, _, ref ty, ref items) => {
-                    println!("this is an impl");
-                    println!("TyKind: {:?}", (*ty).node);
-                    println!("Items: {:?}", items);
+                &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
+                    println!("Items: {:?}", methods);
+                    let mut exprs = Vec::new();
+                    exprs.push(quote_stmt!(cx,
+                        if i == 84 {
+                            println!("thug life");
+                        }));
+                    exprs.push(quote_stmt!(cx,
+                        if i == 42 {
+                            println!("yolo");
+                        }));
+                    let exprs = exprs.into_iter();
                     let impl_item = quote_item!(cx,
-                        impl Test {
-                            pub fn list(&self) -> String{
-                                return "mouhahaha".to_string();
+                        impl$generics ::rpc::Service for $ty {
+                            fn rpc_service_name(&self) ->  &'static str{
+                                return "Test";
                             }
+                            fn serve_rpc_request(&mut self, i: i32) -> bool {
+                                $($exprs)*
+                                return true;
+                            }
+
                         }
                     ).unwrap();
                     push(Annotatable::Item(impl_item));
