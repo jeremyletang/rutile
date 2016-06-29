@@ -83,11 +83,9 @@ fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
                                service_name: String,
                                methods_raw: Vec<(Ident, Vec<P<Ty>>)>)
                                -> syntax::ptr::P<syntax::ast::Expr> {
-    let endpoint_names = methods_raw.iter().fold(vec![], |mut v, &(i, _)| {
+    let endpoint_names = methods_raw.iter().map(|&(i, _)| {
         let en = service_name.clone() + "." + &syntax::print::pprust::ident_to_string(i);
-        let lit = LitBuilder::new().str(&*en);
-        v.push((*lit).clone());
-        return v;
+        (*LitBuilder::new().str(&*en)).clone()
     }).into_iter();
     quote_expr!(cx,
         vec![$($endpoint_names.to_string(),)*]
