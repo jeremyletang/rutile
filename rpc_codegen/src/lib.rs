@@ -11,17 +11,18 @@ extern crate quasi;
 extern crate aster;
 
 use syntax::ast::*;
-use aster::path::IntoPath;
-use syntax::ext::quote::rt::ToTokens;
-use aster::ident::ToIdent;
-use aster::ty::TyPathBuilder;
-use aster::str::ToInternedString;
-use aster::expr::ExprBuilder;
-// use syntax::ast::{self, Ident, MetaItem};
 use syntax::codemap::Span;
 use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::ptr::P;
 use syntax::ext::build::AstBuilder;
+use syntax::ext::quote::rt::ToTokens;
+
+use aster::ident::ToIdent;
+use aster::ty::TyPathBuilder;
+use aster::str::ToInternedString;
+use aster::expr::ExprBuilder;
+use aster::path::IntoPath;
+
 
 fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String {
     let crate_name = cx.ecfg.crate_name.to_string() + ".";
@@ -40,16 +41,6 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
 }
 
 fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>) -> Vec<(Ident, Vec<P<Ty>>)> {
-    // make rpc::RutileError
-    // let error_ty = cx.ty_path("::rpc::RutileError".into_path());
-    // println!("ty: {:?}", error_ty);
-        // TyPathBuilder::new()
-        // .path()
-        // .segment("rpc").build()
-        // .segment("RutileError")
-        // .build());
-
-    // .build();
     let mut methods = vec![];
     for i in items {
         let ident = i.ident;
@@ -61,12 +52,11 @@ fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>) -> Vec<(Id
                     arguments.push(a.ty.clone());
                 }
                 match &sig.decl.output {
-                    &FunctionRetTy::Ty(_) => {},
+                    &FunctionRetTy::Ty(_) => { /* we need to figure out a way to test the return type */ },
                     _ => cx.span_err(i.span, "service methods must return RutileError")
                 }
-                // println!("method: {}, sig: {:?}", name, sig)
             },
-            _ => { /* nothing to do with non mathods kinds */ },
+            _ => { /* nothing to do with non methods kinds */ },
         };
         methods.push((ident, arguments));
     }
