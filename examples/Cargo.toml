@@ -21,3 +21,6 @@ rpc_macros = { version = "0.1.0", path = "../rpc_macros" }
 rpc = { version = "0.1.0", path = "../rpc" }
 rpc_codegen = { version = "0.1.0", path = "../rpc_codegen" }
 rpc_macros = { version = "0.1.0", path = "../rpc_macros" }
+serde = "*"
+serde_json = "*"
+serde_macros = "*"

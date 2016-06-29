@@ -1,37 +1,37 @@
 #![feature(custom_derive, plugin)]
-#![plugin(rpc_macros)]
+#![plugin(rpc_macros, serde_macros)]
 #![allow(unused_imports, unused_variables, dead_code)]
 
 extern crate rpc;
 
 use rpc::Service;
 
-pub trait JsonConvertible {}
-impl JsonConvertible for i32 {}
-impl JsonConvertible for f32 {}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CustomRequest {}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct CustomResponse {}
 
-pub trait ProtoConvertible {}
-impl ProtoConvertible for i32 {}
-impl ProtoConvertible for f32 {}
+impl rpc::JsonConvertible for CustomRequest {}
+impl rpc::JsonConvertible for CustomResponse {}
 
-// #[rpc_service(JsonConvertible, ProtoConvertible)]
 pub mod hello {
-pub struct Test<T> {
-    pub i: T,
-}
+    use super::{CustomResponse, CustomRequest};
 
-#[rpc_service(JsonConvertible, ProtoConvertible)]
-impl<T> Test<T> {
-    pub fn hello(&mut self, i: i32, j: f32) {}
-    pub fn world(&mut self, i: i32, j: f32) {}
-}
+    pub struct Test<T> {
+        pub i: T,
+    }
 
+    #[rpc_service(JsonConvertible)]
+    impl<T> Test<T> {
+        pub fn hello(&mut self, req: CustomRequest, res: CustomResponse) {}
+        pub fn world(&mut self, req: CustomRequest, res: CustomResponse) {}
+    }
 
 }
 
 
 fn main(){
     let mut t = hello::Test{i: 42};
-    t.serve_rpc_request(42);
-    t.serve_rpc_request(84);
+    // t.serve_rpc_request(42);
+    // t.serve_rpc_request(84);
 }

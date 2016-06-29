@@ -28,11 +28,11 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                     println!("Items: {:?}", methods);
                     let mut exprs = Vec::new();
                     exprs.push(quote_stmt!(cx,
-                        if i == 84 {
+                        if true == true {
                             println!("thug life");
                         }));
                     exprs.push(quote_stmt!(cx,
-                        if i == 42 {
+                        if false == true {
                             println!("yolo");
                         }));
                     let exprs = exprs.into_iter();
@@ -41,7 +41,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                             fn rpc_service_name(&self) ->  &'static str{
                                 return "Test";
                             }
-                            fn serve_rpc_request(&mut self, i: i32) -> bool {
+                            fn serve_rpc_request(&mut self, c: ::rpc::Context, m: ::rpc::Message) -> bool {
                                 $($exprs)*
                                 return true;
                             }

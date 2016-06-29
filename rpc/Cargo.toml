@@ -8,3 +8,9 @@ repository = "https://github.com/jeremyletan/rpc"
 documentation = "https://github.com/jeremyletang/rpc"
 keywords = ["rpc", "http"]
 include = ["Cargo.toml", "src/**/*.rs"]
+
+
+[dependencies]
+serde = "*"
+serde_json = "*"
+serde_macros = "*"
