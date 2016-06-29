@@ -19,6 +19,6 @@ pub struct Message {
 pub trait JsonConvertible: serde::Deserialize + serde::Serialize {}
 
 pub trait Service {
-    fn rpc_service_name(&self) -> &'static str;
-    fn serve_rpc_request(&mut self, c: Context, m: Message) -> bool;
+    fn __rpc_service_name(&self) -> &'static str;
+    fn __serve_rpc_request(&mut self, c: Context, m: Message) -> bool;
 }

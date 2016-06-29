@@ -23,14 +23,20 @@ use syntax::ext::base::{Annotatable, ExtCtxt};
 use syntax::ptr::P;
 use syntax::ext::build::AstBuilder;
 
-fn make_service_name(ty_kind: &syntax::ast::TyKind) -> String {
-    match ty_kind {
+fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String {
+    let crate_name = cx.ecfg.crate_name.to_string() + ".";
+    let mod_path = cx.mod_path_stack.
+        iter().fold("".to_string(), |acc, seg| acc + seg + ".");
+    let mut ty_name = match ty_kind {
         &TyKind::Path(_, ref p) => {
-            let seg_len = p.segments.len();
-            syntax::print::pprust::ident_to_string(p.segments[seg_len-1].identifier)
+            p.segments.iter().fold("".to_string(), |acc, seg| {
+                acc + &syntax::print::pprust::ident_to_string(seg.identifier) + "."
+            })
         },
         _ => unreachable!(),
-    }
+    };
+    ty_name.pop();
+    crate_name + &mod_path + &ty_name
 }
 
 fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>) -> Vec<(Ident, Vec<P<Ty>>)> {
@@ -80,7 +86,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
 
                     let service_name = ExprBuilder::new()
-                        .str(&*make_service_name(&(*ty).node));
+                        .str(&*make_service_name(cx, &(*ty).node));
 
                     make_service_methods_list(cx, &methods);
                     // let service_methods = make_service_methods_list(methods);

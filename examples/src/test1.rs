@@ -29,8 +29,7 @@ pub mod hello {
 
 }
 
-
 fn main(){
     let t = hello::Test{i: 42};
-    println!("SERVICE NAME IS: {}", t.rpc_service_name());
+    println!("SERVICE NAME IS: {}", t.__rpc_service_name());
 }
