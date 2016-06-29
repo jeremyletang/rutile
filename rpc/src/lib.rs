@@ -6,6 +6,8 @@ extern crate serde;
 use std::collections::HashMap;
 
 pub type Context = HashMap<String, String>;
+pub type RutileError = Option<Box<::std::error::Error>>;
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Message {

@@ -14,7 +14,7 @@ quasi_codegen = { version = "^0.13.0", optional = true }
 # syntex = { version = "^0.36.0", optional = true }
 
 [dependencies]
-# aster = { version = "^0.19.0", default-features = false }
+aster = { version = "^0.19.0", default-features = false }
 rpc = { version = "0.1.0", path = "../rpc" }
 clippy = { version = "^0.*", optional = true }
 quasi = { version = "^0.13.0", default-features = false }

@@ -23,15 +23,14 @@ pub mod hello {
 
     #[rpc_service(JsonConvertible)]
     impl<T> Test<T> {
-        pub fn hello(&mut self, req: CustomRequest, res: CustomResponse) {}
-        pub fn world(&mut self, req: CustomRequest, res: CustomResponse) {}
+        pub fn hello(&mut self, req: CustomRequest, res: CustomResponse) -> ::rpc::RutileError { None }
+        pub fn world(&mut self, req: CustomRequest, res: CustomResponse) -> ::rpc::RutileError { None }
     }
 
 }
 
 
 fn main(){
-    let mut t = hello::Test{i: 42};
-    // t.serve_rpc_request(42);
-    // t.serve_rpc_request(84);
+    let t = hello::Test{i: 42};
+    println!("SERVICE NAME IS: {}", t.rpc_service_name());
 }
