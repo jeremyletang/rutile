@@ -20,5 +20,6 @@ pub trait JsonConvertible: serde::Deserialize + serde::Serialize {}
 
 pub trait Service {
     fn __rpc_service_name(&self) -> &'static str;
-    fn __serve_rpc_request(&mut self, c: Context, m: Message) -> bool;
+    fn __rpc_list_methods(&self) -> Vec<String>;
+    fn __rpc_serve_request(&mut self, c: Context, m: Message) -> bool;
 }
