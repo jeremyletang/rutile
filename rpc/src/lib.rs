@@ -1,3 +1,10 @@
+// Copyright 2016 Jeremy Letang.
+// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
+// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
+// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
+// option. This file may not be copied, modified, or distributed
+// except according to those terms.
+
 #![feature(custom_derive, plugin)]
 #![plugin(serde_macros)]
 
@@ -13,7 +20,7 @@ pub type RutileError = Option<Box<::std::error::Error>>;
 pub struct Message {
     method: String,
     body: String,
-    id: i64
+    id: i64,
 }
 
 pub trait JsonConvertible: serde::Deserialize + serde::Serialize {}
