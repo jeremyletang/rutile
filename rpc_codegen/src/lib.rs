@@ -98,10 +98,10 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                     let exprs = exprs.into_iter();
                     let impl_item = quote_item!(cx,
                         impl$generics ::rpc::Service for $ty {
-                            fn rpc_service_name(&self) ->  &'static str{
+                            fn __rpc_service_name(&self) ->  &'static str{
                                 return $service_name;
                             }
-                            fn serve_rpc_request(&mut self, c: ::rpc::Context, m: ::rpc::Message) -> bool {
+                            fn __serve_rpc_request(&mut self, c: ::rpc::Context, m: ::rpc::Message) -> bool {
                                 $($exprs)*
                                 return true;
                             }
