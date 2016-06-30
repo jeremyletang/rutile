@@ -39,8 +39,9 @@ fn methods_raw_to_ident(service_name: &str,
                         -> Vec<Ident> {
     methods_raw.iter()
         .map(|&(i, _, _)| {
-            let en = (service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i)).replace(".", "_");
-            en.to_ident()
+            let s = service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i);
+            let s = s.replace(".", "_").to_uppercase();
+            s.to_ident()
         }).collect()
 }
 
@@ -193,25 +194,13 @@ fn make_endpoints_impl_item(cx: &mut ExtCtxt,
     let methods_raw = make_service_methods_list(cx, &methods);
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
     let method_raw_idents = methods_raw_to_ident(&service_name, &methods_raw.clone()).into_iter();
+
     quote_item!(cx,
         impl$generics $ty $where_clauses {
             pub const SERVICE_NAME: &'static str = $service_name_expr;
             $(pub const $method_raw_idents: &'static str = $method_name_lits;)*
-            // const I: &'static str = "hello world";
         }
     )
-
-
-    // let i = quote_item!(cx,
-    //     impl$generics $ty $where_clauses {
-    //         const I: &'static str = "hello world";
-    //         // $(pub $endpoint_var_stmts)*
-    //     }
-    // );
-    //
-    // println!("ident: {}", syntax::print::pprust::ident_to_string((i.clone().unwrap()).ident));
-
-    // return i;
 }
 
 fn expand_rpc_service(cx: &mut ExtCtxt,
