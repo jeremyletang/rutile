@@ -54,41 +54,97 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
 fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>) -> Vec<(Ident, Vec<P<Ty>>)> {
     let mut methods = vec![];
     for i in items {
-        let ident = i.ident;
-        let mut arguments = Vec::<P<Ty>>::new();
         match i.node {
             ImplItemKind::Method(ref sig, _) => {
                 // get arguments list
-                for a in &sig.decl.inputs {
-                    arguments.push(a.ty.clone());
-                }
+                let args = sig.decl
+                    .inputs
+                    .iter()
+                    .map(|a| a.ty.clone())
+                    .collect();
                 match &sig.decl.output {
                     &FunctionRetTy::Ty(_) => {
                         // we need to figure out a way to test the return type
                     }
                     _ => cx.span_err(i.span, "service methods must return RutileError"),
-                }
+                };
+                methods.push((i.ident, args));
             }
             _ => {
                 // nothing to do with non methods kinds
             }
         };
-        methods.push((ident, arguments));
     }
 
     return methods;
 }
 
+fn methods_raw_to_str_literals_list(service_name: &str,
+                                    methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                                    -> Vec<Lit> {
+    methods_raw.iter()
+        .map(|&(i, _)| {
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
+            (*LitBuilder::new().str(&*en)).clone()
+        }).collect()
+}
+
 fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
-                               service_name: String,
-                               methods_raw: Vec<(Ident, Vec<P<Ty>>)>)
-                               -> syntax::ptr::P<syntax::ast::Expr> {
-    let endpoint_names = methods_raw.iter().map(|&(i, _)| {
-        let en = service_name.clone() + "." + &syntax::print::pprust::ident_to_string(i);
-        (*LitBuilder::new().str(&*en)).clone()
-    }).into_iter();
-    quote_expr!(cx,
-        vec![$($endpoint_names.to_string(),)*]
+                               service_name: &str,
+                               methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                               -> P<Expr> {
+
+    let endpoint_names = methods_raw_to_str_literals_list(service_name, methods_raw).into_iter();
+    quote_expr!(cx, vec![$($endpoint_names.to_string(),)*])
+}
+
+fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
+                                service_name: &str,
+                                methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                                -> Vec<P<Block>> {
+    methods_raw.iter()
+        .map(|&(i, ref tys)| {
+            let ref ty1 = tys[1];
+            let ref ty2 = tys[2];
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
+            quote_block!(cx, {
+                let f = |req: $ty1, res: $ty2| -> ::rpc::RutileError {self.$i(req, res)};
+                ::rpc::__decode_and_call::<$ty1, $ty2, _>(&c, &m, f);
+            }).unwrap()
+        }).collect()
+}
+
+fn make_service_trait_impl_item(cx: &mut ExtCtxt,
+                                ty: &P<Ty>,
+                                generics: &Generics,
+                                methods: &Vec<ImplItem>)
+                                -> Option<P<Item>> {
+    let service_name = make_service_name(cx, &(*ty).node);
+    let service_name_expr = ExprBuilder::new().str(&*service_name);
+
+    let methods_raw = make_service_methods_list(cx, &methods);
+    let list_endpoints_fn_expr = make_list_endpoints_fn_expr(cx, &service_name, &methods_raw);
+
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
+    let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw).into_iter();
+
+    quote_item!(cx,
+        impl$generics ::rpc::Service for $ty {
+            fn __rpc_service_name(&self) ->  &'static str{
+                return $service_name_expr;
+            }
+            fn __rpc_list_methods(&self) -> Vec<String> {
+                $list_endpoints_fn_expr
+            }
+            fn __rpc_serve_request(&self, c: ::rpc::Context, m: ::rpc::Message) -> bool {
+                let method = m.method.clone();
+                let s = match &*method {
+                    $($method_name_lits => $match_fn_exprs,)*
+                    _ => return false
+                };
+                return true;
+            }
+        }
     )
 }
 
@@ -102,39 +158,8 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
             match &(*i).node {
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
 
-                    let service_name = make_service_name(cx, &(*ty).node);
-                    let service_name_expr = ExprBuilder::new().str(&*service_name);
-
-                    let methods_raw = make_service_methods_list(cx, &methods);
-                    let list_endpoints_fn_expr =
-                        make_list_endpoints_fn_expr(cx, service_name, methods_raw);
-
-                    let mut exprs = Vec::new();
-                    exprs.push(quote_stmt!(cx,
-                        if true == true {
-                            println!("thug life");
-                        }));
-                    exprs.push(quote_stmt!(cx,
-                        if false == true {
-                            println!("yolo");
-                        }));
-                    let exprs = exprs.into_iter();
-                    let impl_item = quote_item!(cx,
-                        impl$generics ::rpc::Service for $ty {
-                            fn __rpc_service_name(&self) ->  &'static str{
-                                return $service_name_expr;
-                            }
-                            fn __rpc_list_methods(&self) -> Vec<String> {
-                                $list_endpoints_fn_expr
-                            }
-                            fn __rpc_serve_request(&mut self, c: ::rpc::Context, m: ::rpc::Message) -> bool {
-                                $($exprs)*
-                                return true;
-                            }
-
-                        }
-                    ).unwrap();
-                    push(Annotatable::Item(impl_item));
+                    let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
+                    push(Annotatable::Item(impl_item.unwrap()));
                 }
                 _ => {
                     cx.span_err((*i).span,
