@@ -1,10 +1,10 @@
-#![feature(custom_derive, plugin, associated_consts, const_fn)]
+#![feature(custom_derive, plugin, associated_consts)]
 #![plugin(rpc_macros, serde_macros)]
 #![allow(unused_imports, unused_variables, dead_code)]
 
 extern crate rpc;
 
-use rpc::Service;
+use rpc::{context, Service};
 use std::marker::PhantomData;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -44,7 +44,7 @@ impl<Req, Res> Client<Req, Res> {
 }
 
 pub mod hello {
-    use rpc::Context;
+    use rpc::context::Context;
     use super::{CustomResponse, CustomRequest, Error};
     use std::marker::PhantomData;
 
@@ -54,8 +54,6 @@ pub mod hello {
 
     #[rpc_service(JsonConvertible)]
     impl<T> Test<T> where T: Send + Sync + 'static {
-        // #[allow(non_upper_case_globals)]
-        // pub const HelloClient: super::Client<CustomRequest, CustomResponse> = super::Client{endpoint: "hello", res: PhantomData, req: PhantomData};
         pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error>  {
             println!("from hello");
             Ok(CustomResponse{})
@@ -77,7 +75,7 @@ fn main() {
     let mut message_world = rpc::Message::default();
     message_hello.method = "test1.hello.Test.hello".to_string();
     message_world.method = "test1.hello.Test.world".to_string();
-    t.__rpc_serve_request(rpc::make_empty_context(), message_hello);
-    t.__rpc_serve_request(rpc::make_empty_context(), message_world);
+    t.__rpc_serve_request(context::make_empty_context(), message_hello);
+    t.__rpc_serve_request(context::make_empty_context(), message_world);
     // println!("I: {}", hello::Test::<i32>::I);
 }

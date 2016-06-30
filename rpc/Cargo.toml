@@ -14,3 +14,4 @@ include = ["Cargo.toml", "src/**/*.rs"]
 serde = "*"
 serde_json = "*"
 serde_macros = "*"
+typemap = "0.3.3"

@@ -10,27 +10,17 @@
 
 extern crate serde;
 
-use std::collections::HashMap;
+use context::Context;
 
-pub type Context = HashMap<String, String>;
-
-pub fn make_empty_context() -> Context {
-    HashMap::new()
-}
+pub mod context;
+pub mod codec;
+pub mod client;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Message {
     pub method: String,
     pub body: String,
     pub id: i64,
-}
-
-pub fn __decode_and_call<Request, Response, Error, F>(c: &Context, m: &Message, mut f: F)
-    where F: FnMut(&Context, Request) -> Result<Response, Error>, 
-    Request: Default {
-    let req = Request::default();
-    println!("thug life");
-    f(c, req);
 }
 
 pub trait JsonConvertible: serde::Deserialize + serde::Serialize + Default {

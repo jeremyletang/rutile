@@ -142,8 +142,8 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let ref ret_err = retty[1];
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
-                let f = |c: &::rpc::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(c, r)};
-                ::rpc::__decode_and_call::<$req, $ret_ok, $ret_err, _>(&c, &m, f);
+                let f = |c: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(c, r)};
+                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _>(&c, &m, f);
             }).unwrap()
         }).collect()
 }
@@ -172,7 +172,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             fn __rpc_list_methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            fn __rpc_serve_request(&self, c: ::rpc::Context, m: ::rpc::Message) -> bool {
+            fn __rpc_serve_request(&self, c: ::rpc::context::Context, m: ::rpc::Message) -> bool {
                 let method = m.method.clone();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
