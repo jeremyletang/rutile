@@ -5,7 +5,7 @@
 extern crate rpc;
 
 use rpc::{context, Service};
-use std::marker::PhantomData;
+use rpc::context::Context;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CustomRequest {}
@@ -30,52 +30,32 @@ impl rpc::JsonConvertible for CustomResponse {
     fn to_message(&self, m: &mut rpc::Message) {}
 }
 
-#[derive(Default)]
-pub struct Client<Req, Res> {
-    endpoint: &'static str,
-    req: PhantomData<Req>,
-    res: PhantomData<Res>,
+pub struct Test<T> where T: Send + Sync + 'static{
+    pub i: T,
 }
 
-impl<Req, Res> Client<Req, Res> {
-    pub fn call(&self) {
-        println!("yolo");
+#[rpc_service(JsonConvertible)]
+impl<T> Test<T> where T: Send + Sync + 'static {
+    pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error>  {
+        println!("from hello");
+        Ok(CustomResponse{})
     }
-}
-
-pub mod hello {
-    use rpc::context::Context;
-    use super::{CustomResponse, CustomRequest, Error};
-    use std::marker::PhantomData;
-
-    pub struct Test<T> where T: Send + Sync + 'static{
-        pub i: T,
-    }
-
-    #[rpc_service(JsonConvertible)]
-    impl<T> Test<T> where T: Send + Sync + 'static {
-        pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error>  {
-            println!("from hello");
-            Ok(CustomResponse{})
-        }
-        pub fn world(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
-            println!("from world");
-            Ok(CustomResponse{})
-        }
+    pub fn world(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
+        println!("from world");
+        Ok(CustomResponse{})
     }
 }
 
 fn main() {
-    let t = hello::Test { i: 42 };
+    let t = Test { i: 42 };
     println!("SERVICE NAME IS: {}", t.__rpc_service_name());
     for s in t.__rpc_list_methods() {
         println!("method: {}", s);
     }
     let mut message_hello = rpc::Message::default();
     let mut message_world = rpc::Message::default();
-    message_hello.method = "test1.hello.Test.hello".to_string();
-    message_world.method = "test1.hello.Test.world".to_string();
+    message_hello.method = Test::<i32>::TEST1_TEST_HELLO.to_string();
+    message_world.method = Test::<i32>::TEST1_TEST_WORLD.to_string();
     t.__rpc_serve_request(context::make_empty_context(), message_hello);
     t.__rpc_serve_request(context::make_empty_context(), message_world);
-    // println!("I: {}", hello::Test::<i32>::I);
 }
