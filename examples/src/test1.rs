@@ -29,7 +29,7 @@ pub mod hello {
     }
 
     #[rpc_service(JsonConvertible)]
-    impl<T: Send + Sync + 'static> Test<T> {
+    impl<T> Test<T> where T: Send + Sync + 'static {
         pub fn hello(&self, req: CustomRequest, res: CustomResponse) -> ::rpc::RutileError {
             println!("from hello");
             None

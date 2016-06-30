@@ -30,6 +30,7 @@ pub fn __decode_and_call<T1, T2, F>(c: &Context, m: &Message, mut f: F)
     where F: FnMut(T1, T2) -> RutileError,
     T1: JsonConvertible,
     T2: JsonConvertible {
+    
     let t1 = T1::default();
     let t2 = T2::default();
     println!("thug life");

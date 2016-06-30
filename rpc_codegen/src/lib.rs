@@ -128,8 +128,10 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
     let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw).into_iter();
 
+    let where_clauses = generics.where_clause.clone();
+
     quote_item!(cx,
-        impl$generics ::rpc::Service for $ty {
+        impl$generics ::rpc::Service for $ty $where_clauses {
             fn __rpc_service_name(&self) ->  &'static str{
                 return $service_name_expr;
             }
