@@ -34,6 +34,16 @@ use aster::path::IntoPath;
 
 use quasi::ToTokens;
 
+fn methods_raw_to_ident(service_name: &str,
+                        methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                        -> Vec<Ident> {
+    methods_raw.iter()
+        .map(|&(i, _)| {
+            let en = (service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i)).replace(".", "_");
+            en.to_ident()
+        }).collect()
+}
+
 fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String {
     let crate_name = cx.ecfg.crate_name.to_string() + ".";
     let mod_path = cx.mod_path_stack
@@ -150,6 +160,37 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     )
 }
 
+fn make_endpoints_impl_item(cx: &mut ExtCtxt,
+                           ty: &P<Ty>,
+                           generics: &Generics,
+                           methods: &Vec<ImplItem>) -> Option<P<Item>> {
+    let where_clauses = generics.where_clause.clone();
+    let service_name = make_service_name(cx, &(*ty).node);
+    let service_name_expr = ExprBuilder::new().str(&*service_name);
+    let methods_raw = make_service_methods_list(cx, &methods);
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
+    let method_raw_idents = methods_raw_to_ident(&service_name, &methods_raw.clone()).into_iter();
+    quote_item!(cx,
+        impl$generics $ty $where_clauses {
+            pub const SERVICE_NAME: &'static str = $service_name_expr;
+            $(pub const $method_raw_idents: &'static str = $method_name_lits;)*
+            // const I: &'static str = "hello world";
+        }
+    )
+
+
+    // let i = quote_item!(cx,
+    //     impl$generics $ty $where_clauses {
+    //         const I: &'static str = "hello world";
+    //         // $(pub $endpoint_var_stmts)*
+    //     }
+    // );
+    //
+    // println!("ident: {}", syntax::print::pprust::ident_to_string((i.clone().unwrap()).ident));
+
+    // return i;
+}
+
 fn expand_rpc_service(cx: &mut ExtCtxt,
                       span: Span,
                       meta_item: &MetaItem,
@@ -161,7 +202,10 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
 
                     let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
-                    push(Annotatable::Item(impl_item.unwrap()));
+                    let impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
+
+                    push(Annotatable::Item(impl_item.expect("unable to generate service impl")));
+                    push(Annotatable::Item(impl_endpoints.expect("unable to generate endpoints mod")));
                 }
                 _ => {
                     cx.span_err((*i).span,
