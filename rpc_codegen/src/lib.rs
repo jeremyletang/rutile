@@ -34,6 +34,24 @@ use aster::path::IntoPath;
 
 use quasi::ToTokens;
 
+fn methods_raw_to_ident(service_name: &str,
+                        methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                        -> Vec<Ident> {
+    methods_raw.iter()
+        .map(|&(i, _)| {
+            let en = (service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i)).replace(".", "_");
+            en.to_ident()
+        }).collect()
+}
+
+fn make_endpoints_var_stmt(cx: &mut ExtCtxt, lits: Vec<Lit>, idents: Vec<Ident>) -> Vec<P<Expr>> {
+    idents.into_iter().zip(lits.into_iter()).into_iter().map(|(i, l)| {
+        quote_expr!(cx, const $i: &'static str = $l;)
+        // println!("{}", syntax::print::pprust::stmt_to_string(&s));
+        // s
+    }).collect()
+}
+
 fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String {
     let crate_name = cx.ecfg.crate_name.to_string() + ".";
     let mod_path = cx.mod_path_stack
@@ -150,6 +168,24 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     )
 }
 
+fn make_endpoints_mod_item(cx: &mut ExtCtxt,
+                           ty: &P<Ty>,
+                           generics: &Generics,
+                           methods: &Vec<ImplItem>) -> Option<P<Item>> {
+    let service_name = make_service_name(cx, &(*ty).node);
+    let methods_raw = make_service_methods_list(cx, &methods);
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
+    let endpoint_var_stmts =
+        make_endpoints_var_stmt(cx,
+                                method_name_lits.clone().collect(),
+                                methods_raw_to_ident(&service_name, &methods_raw.clone())).into_iter();
+    quote_item!(cx,
+        pub mod endpoints {
+            $($endpoint_var_stmts)*
+        }
+    )
+}
+
 fn expand_rpc_service(cx: &mut ExtCtxt,
                       span: Span,
                       meta_item: &MetaItem,
@@ -161,7 +197,9 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
 
                     let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
-                    push(Annotatable::Item(impl_item.unwrap()));
+                    let endpoints_mod = make_endpoints_mod_item(cx, ty, generics, methods);
+                    push(Annotatable::Item(impl_item.expect("unable to generate service impl")));
+                    push(Annotatable::Item(endpoints_mod.expect("unable to generate endpoints mod")));
                 }
                 _ => {
                     cx.span_err((*i).span,
