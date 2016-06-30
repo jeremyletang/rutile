@@ -35,10 +35,10 @@ use aster::path::IntoPath;
 use quasi::ToTokens;
 
 fn methods_raw_to_ident(service_name: &str,
-                        methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                        methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
                         -> Vec<Ident> {
     methods_raw.iter()
-        .map(|&(i, _)| {
+        .map(|&(i, _, _)| {
             let en = (service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i)).replace(".", "_");
             en.to_ident()
         }).collect()
@@ -61,24 +61,46 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
     crate_name + &mod_path + &ty_name
 }
 
-fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>) -> Vec<(Ident, Vec<P<Ty>>)> {
+fn extract_method_args(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
+    sig.decl.inputs.iter().map(|a| a.ty.clone()).collect()
+}
+
+fn extract_method_return_type_parameters(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
+    match &sig.decl.output {
+        &FunctionRetTy::Ty(ref ty) => {
+            match (*ty).node {
+                TyKind::Path(_, ref p) => {
+                        let seg_len = p.segments.len();
+                        match p.segments[seg_len-1].parameters {
+                            PathParameters::AngleBracketed(ref pp) => {
+                                pp.types.to_vec()
+                            },
+                            _ => vec![]
+                        }
+                },
+                _ => {
+                    vec![]
+                }
+            }
+        }
+        _ => {
+            vec![]
+        },
+    }
+}
+
+fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
+    -> Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)> {
     let mut methods = vec![];
     for i in items {
         match i.node {
             ImplItemKind::Method(ref sig, _) => {
-                // get arguments list
-                let args = sig.decl
-                    .inputs
-                    .iter()
-                    .map(|a| a.ty.clone())
-                    .collect();
-                match &sig.decl.output {
-                    &FunctionRetTy::Ty(_) => {
-                        // we need to figure out a way to test the return type
-                    }
-                    _ => cx.span_err(i.span, "service methods must return RutileError"),
-                };
-                methods.push((i.ident, args));
+                let args = extract_method_args(sig);
+                let ret_ty_params = extract_method_return_type_parameters(sig);
+                if ret_ty_params.len() == 0 {
+                    cx.span_err(i.span, "service methods must return Result<_, _>");
+                }
+                methods.push((i.ident, args, ret_ty_params));
             }
             _ => {
                 // nothing to do with non methods kinds
@@ -90,10 +112,10 @@ fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>) -> Vec<(Id
 }
 
 fn methods_raw_to_str_literals_list(service_name: &str,
-                                    methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                                    methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
                                     -> Vec<Lit> {
     methods_raw.iter()
-        .map(|&(i, _)| {
+        .map(|&(i, _, _)| {
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             (*LitBuilder::new().str(&*en)).clone()
         }).collect()
@@ -101,7 +123,7 @@ fn methods_raw_to_str_literals_list(service_name: &str,
 
 fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
                                service_name: &str,
-                               methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                               methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
                                -> P<Expr> {
 
     let endpoint_names = methods_raw_to_str_literals_list(service_name, methods_raw).into_iter();
@@ -110,16 +132,17 @@ fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
 
 fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
                                 service_name: &str,
-                                methods_raw: &Vec<(Ident, Vec<P<Ty>>)>)
+                                methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
                                 -> Vec<P<Block>> {
     methods_raw.iter()
-        .map(|&(i, ref tys)| {
-            let ref ty1 = tys[1];
-            let ref ty2 = tys[2];
+        .map(|&(i, ref args, ref retty)| {
+            let ref req = args[2];
+            let ref ret_ok = retty[0];
+            let ref ret_err = retty[1];
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
-                let f = |req: $ty1, res: $ty2| -> ::rpc::RutileError {self.$i(req, res)};
-                ::rpc::__decode_and_call::<$ty1, $ty2, _>(&c, &m, f);
+                let f = |c: &::rpc::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(c, r)};
+                ::rpc::__decode_and_call::<$req, $ret_ok, $ret_err, _>(&c, &m, f);
             }).unwrap()
         }).collect()
 }

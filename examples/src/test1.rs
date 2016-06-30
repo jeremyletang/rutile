@@ -11,8 +11,16 @@ use std::marker::PhantomData;
 pub struct CustomRequest {}
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CustomResponse {}
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct Error {}
+
 
 impl rpc::JsonConvertible for CustomRequest {
+    fn from_message(&mut self, m: &rpc::Message) {}
+    fn to_message(&self, m: &mut rpc::Message) {}
+}
+
+impl rpc::JsonConvertible for Error {
     fn from_message(&mut self, m: &rpc::Message) {}
     fn to_message(&self, m: &mut rpc::Message) {}
 }
@@ -36,7 +44,8 @@ impl<Req, Res> Client<Req, Res> {
 }
 
 pub mod hello {
-    use super::{CustomResponse, CustomRequest};
+    use rpc::Context;
+    use super::{CustomResponse, CustomRequest, Error};
     use std::marker::PhantomData;
 
     pub struct Test<T> where T: Send + Sync + 'static{
@@ -45,15 +54,15 @@ pub mod hello {
 
     #[rpc_service(JsonConvertible)]
     impl<T> Test<T> where T: Send + Sync + 'static {
-        #[allow(non_upper_case_globals)]
-        pub const HelloClient: super::Client<CustomRequest, CustomResponse> = super::Client{endpoint: "hello", res: PhantomData, req: PhantomData};
-        pub fn hello(&self, req: CustomRequest, res: CustomResponse) -> ::rpc::RutileError {
+        // #[allow(non_upper_case_globals)]
+        // pub const HelloClient: super::Client<CustomRequest, CustomResponse> = super::Client{endpoint: "hello", res: PhantomData, req: PhantomData};
+        pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error>  {
             println!("from hello");
-            None
+            Ok(CustomResponse{})
         }
-        pub fn world(&self, req: CustomRequest, res: CustomResponse) -> ::rpc::RutileError {
+        pub fn world(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
             println!("from world");
-            None
+            Ok(CustomResponse{})
         }
     }
 }

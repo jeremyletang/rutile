@@ -13,7 +13,6 @@ extern crate serde;
 use std::collections::HashMap;
 
 pub type Context = HashMap<String, String>;
-pub type RutileError = Option<Box<::std::error::Error>>;
 
 pub fn make_empty_context() -> Context {
     HashMap::new()
@@ -26,15 +25,12 @@ pub struct Message {
     pub id: i64,
 }
 
-pub fn __decode_and_call<T1, T2, F>(c: &Context, m: &Message, mut f: F)
-    where F: FnMut(T1, T2) -> RutileError,
-    T1: JsonConvertible,
-    T2: JsonConvertible {
-    
-    let t1 = T1::default();
-    let t2 = T2::default();
+pub fn __decode_and_call<Request, Response, Error, F>(c: &Context, m: &Message, mut f: F)
+    where F: FnMut(&Context, Request) -> Result<Response, Error>, 
+    Request: Default {
+    let req = Request::default();
     println!("thug life");
-    f(t1, t2);
+    f(c, req);
 }
 
 pub trait JsonConvertible: serde::Deserialize + serde::Serialize + Default {
