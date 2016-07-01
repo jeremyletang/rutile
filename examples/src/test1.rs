@@ -4,8 +4,8 @@
 
 extern crate rpc;
 
-use rpc::{context, Service};
-use rpc::context::Context;
+use rpc::context::{self, Context};
+use rpc::service::Service;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CustomRequest {}
@@ -35,29 +35,33 @@ pub mod test_service {
     use super::{CustomRequest, CustomResponse, Error};
     use rpc::context::Context;
 
-    pub struct Test<T> where T: Send + Sync + 'static {
+    pub struct Test<T>
+        where T: Send + Sync + 'static
+    {
         pub i: T,
     }
 
-    impl<T> Test<T> where T: Send + Sync + 'static {
-        pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error>  {
+    impl<T> Test<T>
+        where T: Send + Sync + 'static
+    {
+        pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
             println!("from hello");
-            Ok(CustomResponse{})
+            Ok(CustomResponse {})
         }
         pub fn world(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
             println!("from world");
-            Ok(CustomResponse{})
+            Ok(CustomResponse {})
         }
     }
 
     impl Test<String> {
-        pub fn hello_(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error>  {
+        pub fn hello_(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
             println!("from hello spec in string");
-            Ok(CustomResponse{})
+            Ok(CustomResponse {})
         }
         pub fn world_(&self, c: &Context, req: CustomRequest) -> Result<CustomResponse, Error> {
             println!("from world spec int string");
-            Ok(CustomResponse{})
+            Ok(CustomResponse {})
         }
     }
 

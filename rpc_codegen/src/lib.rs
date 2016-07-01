@@ -166,7 +166,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let where_clauses = generics.where_clause.clone();
 
     quote_item!(cx,
-        impl$generics ::rpc::Service for $ty $where_clauses {
+        impl$generics ::rpc::service::Service for $ty $where_clauses {
             default fn __rpc_service_name(&self) ->  &'static str{
                 return $service_name_expr;
             }

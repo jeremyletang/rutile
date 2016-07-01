@@ -6,7 +6,7 @@
 // except according to those terms.
 
 use std::marker::PhantomData;
-use super::context::Context;
+use context::Context;
 
 // clientbuilder
 

@@ -15,6 +15,9 @@ use context::Context;
 pub mod context;
 pub mod codec;
 pub mod client;
+pub mod transport;
+pub mod server;
+pub mod service;
 
 #[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Message {
@@ -31,10 +34,4 @@ pub trait JsonConvertible: serde::Deserialize + serde::Serialize + Default {
     fn to_message(&self, m: &mut Message) {
 
     }
-}
-
-pub trait Service: Send + Sync + 'static {
-    fn __rpc_service_name(&self) -> &'static str;
-    fn __rpc_list_methods(&self) -> Vec<String>;
-    fn __rpc_serve_request(&self, c: Context, m: Message) -> bool;
 }
