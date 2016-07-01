@@ -167,13 +167,13 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
 
     quote_item!(cx,
         impl$generics ::rpc::Service for $ty $where_clauses {
-            fn __rpc_service_name(&self) ->  &'static str{
+            default fn __rpc_service_name(&self) ->  &'static str{
                 return $service_name_expr;
             }
-            fn __rpc_list_methods(&self) -> Vec<String> {
+            default fn __rpc_list_methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            fn __rpc_serve_request(&self, c: ::rpc::context::Context, m: ::rpc::Message) -> bool {
+            default fn __rpc_serve_request(&self, c: ::rpc::context::Context, m: ::rpc::Message) -> bool {
                 let method = m.method.clone();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
@@ -195,42 +195,46 @@ fn make_endpoints_impl_item(cx: &mut ExtCtxt,
     let methods_raw = make_service_methods_list(cx, &methods);
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
     let method_raw_idents = methods_raw_to_ident(&service_name, &methods_raw.clone()).into_iter();
-    let mut z: Vec<P<Item>> = method_raw_idents.into_iter().zip(method_name_lits.into_iter()).map(|(a, b)|
+    let items: Vec<P<Item>> = method_raw_idents.into_iter().zip(method_name_lits.into_iter()).map(|(a, b)|
         quote_item!(cx, pub const $a: &'static str = $b;).unwrap()).collect();
-    z.push(quote_item!(cx, pub const SERVICE_NAME: &'static str = $service_name_expr;).unwrap());
-    return z;
+    return items;
+    // items.push(quote_item!(cx, pub const SERVICE_NAME: &'static str = $service_name_expr;).unwrap());
+
 }
 
-fn find_mod_impl(m: &Mod) -> (Option<ItemKind>, Vec<P<Item>>) {
-    let mut item_kind = None;
-    let mut v = vec![];
+fn find_mod_impl(m: &Mod) -> (Vec<ItemKind>, Vec<P<Item>>) {
+    let mut items = vec![];
+    let mut impls = vec![];
     for i in &m.items {
         match i.node {
             ItemKind::Impl(_, _, _, _, _, _) => {
-                item_kind = Some(i.node.clone());
-                v.push(i.clone());
+                impls.push(i.node.clone());
+                items.push(i.clone());
             },
-            _ => {
-                println!("{}", syntax::print::pprust::item_to_string(&*i.clone()));
-                v.push(i.clone());
-            }
+            _ => items.push(i.clone())
         }
     }
-    (item_kind, v)
+    (impls, items)
 }
 
-fn generate_trait_rpc_service(cx: &mut ExtCtxt, m: &ItemKind) -> Vec<P<Item>> {
-    match m {
-        &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
-            let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
-            let mut impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
-            println!("{}", syntax::print::pprust::item_to_string(&*impl_item.clone().unwrap()));
-            // println!("{}", syntax::print::pprust::item_to_string(&*impl_endpoints.clone().unwrap()));
-            impl_endpoints.push(impl_item.unwrap());
-            return impl_endpoints;
-        },
-        _ => vec![]
+fn generate_trait_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>) -> Vec<P<Item>> {
+    let mut items = vec![];
+    for imp in impls {
+        items.append(
+            &mut match imp {
+                &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
+                    let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
+                    let mut impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
+                    println!("{}", syntax::print::pprust::item_to_string(&*impl_item.clone().unwrap()));
+                    // println!("{}", syntax::print::pprust::item_to_string(&*impl_endpoints.clone().unwrap()));
+                    impl_endpoints.push(impl_item.unwrap());
+                    impl_endpoints
+                },
+                _ => vec![]
+            }
+        )
     }
+    return items;
 }
 
 fn expand_rpc_service(cx: &mut ExtCtxt,
@@ -242,16 +246,13 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
         Annotatable::Item(ref i) => {
             match &(*i).node {
                 &ItemKind::Mod(ref m) => {
-                    let (imp, mut v) = match find_mod_impl(&m) {
-                        (Some(i), v) => (i, v),
-                        (None, _) => {
-                            cx.span_fatal(span,
-                                         "cannot found struct or enum impl")
-                        }
-                    };
+                    let (impls, mut items) = find_mod_impl(&m);
+                    if impls.len() == 0 {
+                        cx.span_fatal(span, "cannot found struct or enum impls");
+                    }
                     let mut _mod = m.clone();
-                    v.append(&mut generate_trait_rpc_service(cx, &imp));
-                    _mod.items = v;
+                    items.append(&mut generate_trait_rpc_service(cx, &impls));
+                    _mod.items = items;
                     let item = P(Item {
                         ident: i.ident.clone(),
                         attrs: i.attrs.clone(),

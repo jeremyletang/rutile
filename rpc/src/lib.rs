@@ -16,7 +16,7 @@ pub mod context;
 pub mod codec;
 pub mod client;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct Message {
     pub method: String,
     pub body: String,
