@@ -143,8 +143,9 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let ref ret_err = retty[1];
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
-                let f = |c: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(c, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _>(&c, &m, f);
+                let codec = ::rpc::codec::json_codec::JsonCodec{};
+                let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
+                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &m, f);
             }).unwrap()
         }).collect()
 }
@@ -173,8 +174,10 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             default fn __rpc_list_methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            default fn __rpc_serve_request(&self, c: ::rpc::context::Context, m: ::rpc::codec::Message) -> bool {
-                let method = m.method.clone();
+            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, m: String) -> bool {
+                use ::rpc::codec::Codec;
+                let c = ::rpc::codec::json_codec::JsonCodec{};
+                let method = <::rpc::codec::json_codec::JsonCodec as Codec<::rpc::codec::json_codec::Dummy>>::extract_method_from_raw(&c, &m).unwrap();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
                     _ => return false
