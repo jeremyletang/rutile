@@ -6,7 +6,30 @@
 // except according to those terms.
 
 use context::Context;
-use super::Message;
+use serde;
+
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
+pub struct Message {
+    pub method: String,
+    pub body: String,
+    pub id: i64,
+}
+
+pub trait Codec: Clone {
+    fn ty_from_message<T>(&self, &Message) -> Option<T>;
+    fn ty_to_message<T>(&self, &T) -> Option<Message>;
+}
+
+pub trait JsonConvertible: serde::Deserialize + serde::Serialize + Default {
+    fn from_message(&mut self, m: &Message) {
+
+    }
+
+    fn to_message(&self, m: &mut Message) {
+
+    }
+}
+
 
 pub fn __decode_and_call<Request, Response, Error, F>(c: &Context, m: &Message, mut f: F)
     where F: FnMut(&Context, Request) -> Result<Response, Error>,

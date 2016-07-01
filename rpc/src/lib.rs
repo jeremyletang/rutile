@@ -18,20 +18,3 @@ pub mod client;
 pub mod transport;
 pub mod server;
 pub mod service;
-
-#[derive(Clone, Serialize, Deserialize, Debug, Default)]
-pub struct Message {
-    pub method: String,
-    pub body: String,
-    pub id: i64,
-}
-
-pub trait JsonConvertible: serde::Deserialize + serde::Serialize + Default {
-    fn from_message(&mut self, m: &Message) {
-
-    }
-
-    fn to_message(&self, m: &mut Message) {
-
-    }
-}

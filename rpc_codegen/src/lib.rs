@@ -173,7 +173,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             default fn __rpc_list_methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            default fn __rpc_serve_request(&self, c: ::rpc::context::Context, m: ::rpc::Message) -> bool {
+            default fn __rpc_serve_request(&self, c: ::rpc::context::Context, m: ::rpc::codec::Message) -> bool {
                 let method = m.method.clone();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*

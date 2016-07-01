@@ -6,7 +6,7 @@
 // except according to those terms.
 
 use context::Context;
-use super::Message;
+use codec::Message;
 
 pub trait Service: Send + Sync + 'static {
     fn __rpc_service_name(&self) -> &'static str;

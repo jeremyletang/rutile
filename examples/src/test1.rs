@@ -6,6 +6,7 @@ extern crate rpc;
 
 use rpc::context::{self, Context};
 use rpc::service::Service;
+use rpc::codec::Message;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CustomRequest {}
@@ -15,19 +16,19 @@ pub struct CustomResponse {}
 pub struct Error {}
 
 
-impl rpc::JsonConvertible for CustomRequest {
-    fn from_message(&mut self, m: &rpc::Message) {}
-    fn to_message(&self, m: &mut rpc::Message) {}
+impl rpc::codec::JsonConvertible for CustomRequest {
+    fn from_message(&mut self, m: &Message) {}
+    fn to_message(&self, m: &mut Message) {}
 }
 
-impl rpc::JsonConvertible for Error {
-    fn from_message(&mut self, m: &rpc::Message) {}
-    fn to_message(&self, m: &mut rpc::Message) {}
+impl rpc::codec::JsonConvertible for Error {
+    fn from_message(&mut self, m: &Message) {}
+    fn to_message(&self, m: &mut Message) {}
 }
 
-impl rpc::JsonConvertible for CustomResponse {
-    fn from_message(&mut self, m: &rpc::Message) {}
-    fn to_message(&self, m: &mut rpc::Message) {}
+impl rpc::codec::JsonConvertible for CustomResponse {
+    fn from_message(&mut self, m: &Message) {}
+    fn to_message(&self, m: &mut Message) {}
 }
 
 #[rpc_service(JsonConvertible)]
@@ -74,8 +75,8 @@ fn main() {
     for s in t.__rpc_list_methods() {
         println!("method: {}", s);
     }
-    let mut message_hello = rpc::Message::default();
-    let mut message_world = rpc::Message::default();
+    let mut message_hello = Message::default();
+    let mut message_world = Message::default();
     message_hello.method = test_service::TEST1_TEST_SERVICE_TEST_HELLO.to_string();
     message_world.method = test_service::TEST1_TEST_SERVICE_TEST_WORLD.to_string();
     t.__rpc_serve_request(context::make_empty_context(), message_hello.clone());
