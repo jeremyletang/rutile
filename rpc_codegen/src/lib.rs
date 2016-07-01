@@ -19,9 +19,10 @@ extern crate aster;
 
 use syntax::ast::*;
 use syntax::codemap::{Span, spanned, BytePos};
-use syntax::ext::base::{Annotatable, ExtCtxt};
+use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
 use syntax::ptr::P;
 use syntax::ext::build::AstBuilder;
+use aster::item::ItemBuilder;
 // use syntax::ext::quote::rt::ToTokens;
 use syntax::parse::token::InternedString;
 
@@ -187,52 +188,94 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
 fn make_endpoints_impl_item(cx: &mut ExtCtxt,
                            ty: &P<Ty>,
                            generics: &Generics,
-                           methods: &Vec<ImplItem>) -> Option<P<Item>> {
+                           methods: &Vec<ImplItem>) -> Vec<P<Item>> {
     let where_clauses = generics.where_clause.clone();
     let service_name = make_service_name(cx, &(*ty).node);
     let service_name_expr = ExprBuilder::new().str(&*service_name);
     let methods_raw = make_service_methods_list(cx, &methods);
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
     let method_raw_idents = methods_raw_to_ident(&service_name, &methods_raw.clone()).into_iter();
+    let mut z: Vec<P<Item>> = method_raw_idents.into_iter().zip(method_name_lits.into_iter()).map(|(a, b)|
+        quote_item!(cx, pub const $a: &'static str = $b;).unwrap()).collect();
+    z.push(quote_item!(cx, pub const SERVICE_NAME: &'static str = $service_name_expr;).unwrap());
+    return z;
+}
 
-    quote_item!(cx,
-        impl$generics $ty $where_clauses {
-            pub const SERVICE_NAME: &'static str = $service_name_expr;
-            $(pub const $method_raw_idents: &'static str = $method_name_lits;)*
+fn find_mod_impl(m: &Mod) -> (Option<ItemKind>, Vec<P<Item>>) {
+    let mut item_kind = None;
+    let mut v = vec![];
+    for i in &m.items {
+        match i.node {
+            ItemKind::Impl(_, _, _, _, _, _) => {
+                item_kind = Some(i.node.clone());
+                v.push(i.clone());
+            },
+            _ => {
+                println!("{}", syntax::print::pprust::item_to_string(&*i.clone()));
+                v.push(i.clone());
+            }
         }
-    )
+    }
+    (item_kind, v)
+}
+
+fn generate_trait_rpc_service(cx: &mut ExtCtxt, m: &ItemKind) -> Vec<P<Item>> {
+    match m {
+        &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
+            let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
+            let mut impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
+            println!("{}", syntax::print::pprust::item_to_string(&*impl_item.clone().unwrap()));
+            // println!("{}", syntax::print::pprust::item_to_string(&*impl_endpoints.clone().unwrap()));
+            impl_endpoints.push(impl_item.unwrap());
+            return impl_endpoints;
+        },
+        _ => vec![]
+    }
 }
 
 fn expand_rpc_service(cx: &mut ExtCtxt,
                       span: Span,
                       meta_item: &MetaItem,
-                      annotatable: &Annotatable,
-                      push: &mut FnMut(Annotatable)) {
+                      annotatable: Annotatable)
+                      -> Vec<Annotatable> {
     match annotatable {
-        &Annotatable::Item(ref i) => {
+        Annotatable::Item(ref i) => {
             match &(*i).node {
-                &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
-
-                    let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
-                    let impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
-
-                    push(Annotatable::Item(impl_item.expect("unable to generate service impl")));
-                    push(Annotatable::Item(impl_endpoints.expect("unable to generate endpoints mod")));
+                &ItemKind::Mod(ref m) => {
+                    let (imp, mut v) = match find_mod_impl(&m) {
+                        (Some(i), v) => (i, v),
+                        (None, _) => {
+                            cx.span_fatal(span,
+                                         "cannot found struct or enum impl")
+                        }
+                    };
+                    let mut _mod = m.clone();
+                    v.append(&mut generate_trait_rpc_service(cx, &imp));
+                    _mod.items = v;
+                    let item = P(Item {
+                        ident: i.ident.clone(),
+                        attrs: i.attrs.clone(),
+                        id: DUMMY_NODE_ID,
+                        node: ItemKind::Mod(_mod),
+                        vis: Visibility::Public,
+                        span: span,
+                    });
+                    return vec![Annotatable::Item(item)];
                 }
                 _ => {
-                    cx.span_err((*i).span,
-                                "#[rpc_service(...)] may only be applied to struct or enum impls")
+                    cx.span_fatal(span,
+                                  "#[rpc_service(...)] may only be applied modules");
                 }
             }
-        }
+        },
         _ => {
-            cx.span_err(span,
-                        "#[rpc_service(...)] may only be applied to struct or enum impls")
+            cx.span_fatal(span,
+                          "#[rpc_service(...)] may only be applied modules");
         }
     }
 }
 
 pub fn register(reg: &mut rustc_plugin::Registry) {
     reg.register_syntax_extension(syntax::parse::token::intern("rpc_service"),
-                                  syntax::ext::base::MultiDecorator(Box::new(expand_rpc_service)));
+                                  MultiModifier(Box::new(expand_rpc_service)));
 }
