@@ -20,20 +20,22 @@ extern crate aster;
 use syntax::ast::*;
 use syntax::codemap::{Span, spanned, BytePos};
 use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
-use syntax::ptr::P;
 use syntax::ext::build::AstBuilder;
-use aster::item::ItemBuilder;
-// use syntax::ext::quote::rt::ToTokens;
 use syntax::parse::token::InternedString;
+use syntax::ptr::P;
+// use syntax::ext::quote::rt::ToTokens;
 
 use aster::ident::ToIdent;
-use aster::lit::LitBuilder;
-use aster::ty::TyPathBuilder;
-use aster::str::ToInternedString;
+use aster::item::ItemBuilder;
 use aster::expr::ExprBuilder;
+use aster::lit::LitBuilder;
 use aster::path::IntoPath;
+use aster::str::ToInternedString;
+use aster::ty::TyPathBuilder;
 
 use quasi::ToTokens;
+
+mod codec;
 
 fn methods_raw_to_ident(service_name: &str,
                         methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
@@ -246,6 +248,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                       meta_item: &MetaItem,
                       annotatable: Annotatable)
                       -> Vec<Annotatable> {
+    let types = codec::extract_codec_from_meta_item(cx, meta_item);
     match annotatable {
         Annotatable::Item(ref i) => {
             match &(*i).node {

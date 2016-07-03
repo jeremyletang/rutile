@@ -36,7 +36,8 @@ pub struct Error {}
 //     fn to_message(&self, m: &mut Message) {}
 // }
 
-#[rpc_service(JsonCodec)]
+#[rpc_service(json_codec = "::rpc::codec::json_codec::JsonCodec",
+              protobuf_codec = "::rpc_proto_codec::ProtobufCodec")]
 pub mod test_service {
     // use super::{CustomRequest, CustomResponse, Error};
     use rpc::context::Context;
@@ -85,8 +86,10 @@ fn main() {
     message_world.set_method(test_service::TEST1_TEST_SERVICE_TEST_WORLD);
     message_world.set_body(&"hello".to_string());
 
-    t.__rpc_serve_request(Context::new(), serde_json::to_string(&message_hello).unwrap());
-    t.__rpc_serve_request(Context::new(), serde_json::to_string(&message_world).unwrap());
+    t.__rpc_serve_request(Context::new(),
+                          serde_json::to_string(&message_hello).unwrap());
+    t.__rpc_serve_request(Context::new(),
+                          serde_json::to_string(&message_world).unwrap());
     // message_hello.method = test_service::TEST1_TEST_SERVICE_TEST_HELLO_.to_string();
     // message_world.method = test_service::TEST1_TEST_SERVICE_TEST_WORLD_.to_string();
     // t_spec.__rpc_serve_request(context::make_empty_context(), message_hello);

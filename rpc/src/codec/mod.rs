@@ -40,7 +40,6 @@ pub trait ContentType {
 
 pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F)
     where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Result<Response, Error>,
-    Request: Default,
     C: Codec<Request> + Codec<Response> + Codec<Error> {
     let message = <C as Codec<Request>>::decode_message(codec, body).expect("unable to extract message");
     info!("dispatching message to method {}", message.get_method());
