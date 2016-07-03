@@ -24,3 +24,5 @@ rpc_macros = { version = "0.1.0", path = "../rpc_macros" }
 serde = "*"
 serde_json = "*"
 serde_macros = "*"
+log = "0.3.6"
+env_logger = "0.3.3"

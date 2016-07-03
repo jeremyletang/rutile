@@ -5,10 +5,20 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::collections::HashMap;
+use hyper::header::Headers;
+use typemap::{CloneMap, TypeMap};
 
-pub type Context = HashMap<String, String>;
+#[derive(Clone)]
+pub struct Context {
+    pub headers: Headers,
+    pub ext: CloneMap,
+}
 
-pub fn make_empty_context() -> Context {
-    HashMap::new()
+impl Context {
+    pub fn new() -> Context {
+        Context {
+            headers: Headers::new(),
+            ext: CloneMap::custom(),
+        }
+    }
 }

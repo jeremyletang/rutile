@@ -175,9 +175,10 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 $list_endpoints_fn_expr
             }
             default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, m: String) -> bool {
-                use ::rpc::codec::Codec;
+                use ::rpc::codec::{Codec, ContentType, MethodExtract};
                 let c = ::rpc::codec::json_codec::JsonCodec{};
-                let method = <::rpc::codec::json_codec::JsonCodec as Codec<::rpc::codec::json_codec::Dummy>>::extract_method_from_raw(&c, &m).unwrap();
+                let method = c.extract(&m).unwrap();
+                // let method = <::rpc::codec::json_codec::JsonCodec as Codec<::rpc::codec::json_codec::Dummy>>::extract_method_from_raw(&c, &m).unwrap();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
                     _ => return false

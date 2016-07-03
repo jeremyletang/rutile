@@ -5,7 +5,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use super::{Codec, Message};
+use super::{Codec, Message, MethodExtract, ContentType};
 use context::Context;
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value};
@@ -33,14 +33,23 @@ impl<T> Message for JsonMessage<T> where T: Default + Clone + Serialize + Deseri
     fn set_id(&mut self, id: i64) { self.id = id; }
 }
 
-impl<T> Codec<T> for JsonCodec
-    where T: Serialize + Deserialize + Clone + Default {
-    type M = JsonMessage<T>;
-
-    fn extract_method_from_raw(&self, s: &String) -> Option<String> {
+impl MethodExtract for JsonCodec {
+    fn extract(&self, s: &String) -> Option<String> {
         let value: Value = serde_json::from_str(&*s).unwrap();
         Some(value.find("method").unwrap().as_string().unwrap().to_string())
     }
+}
+
+impl ContentType for JsonCodec {
+    fn content_type(&self) -> &str {
+        return "application/json";
+    }
+}
+
+
+impl<T> Codec<T> for JsonCodec
+    where T: Serialize + Deserialize + Clone + Default {
+    type M = JsonMessage<T>;
 
     fn from_string(&self, s: &str) -> Option<T> {
         serde_json::from_str(&s).ok()

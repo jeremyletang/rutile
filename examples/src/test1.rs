@@ -4,6 +4,9 @@
 
 extern crate rpc;
 extern crate serde_json;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 
 use rpc::context::{self, Context};
 use rpc::service::Service;
@@ -33,9 +36,9 @@ pub struct Error {}
 //     fn to_message(&self, m: &mut Message) {}
 // }
 
-#[rpc_service(JsonConvertible)]
+#[rpc_service(JsonCodec)]
 pub mod test_service {
-    use super::{CustomRequest, CustomResponse, Error};
+    // use super::{CustomRequest, CustomResponse, Error};
     use rpc::context::Context;
 
     pub struct Test<T>
@@ -71,12 +74,10 @@ pub mod test_service {
 }
 
 fn main() {
+    let _ = env_logger::init();
     let t = test_service::Test { i: 42 };
     let t_spec = test_service::Test { i: "s".to_string() };
     println!("SERVICE NAME IS: {}", t.__rpc_service_name());
-    for s in t.__rpc_list_methods() {
-        println!("method: {}", s);
-    }
     let mut message_hello = JsonMessage::<i32>::default();
     let mut message_world = JsonMessage::<String>::default();
     message_hello.set_method(test_service::TEST1_TEST_SERVICE_TEST_HELLO);
@@ -84,8 +85,8 @@ fn main() {
     message_world.set_method(test_service::TEST1_TEST_SERVICE_TEST_WORLD);
     message_world.set_body(&"hello".to_string());
 
-    t.__rpc_serve_request(context::make_empty_context(), serde_json::to_string(&message_hello).unwrap());
-    t.__rpc_serve_request(context::make_empty_context(), serde_json::to_string(&message_world).unwrap());
+    t.__rpc_serve_request(Context::new(), serde_json::to_string(&message_hello).unwrap());
+    t.__rpc_serve_request(Context::new(), serde_json::to_string(&message_world).unwrap());
     // message_hello.method = test_service::TEST1_TEST_SERVICE_TEST_HELLO_.to_string();
     // message_world.method = test_service::TEST1_TEST_SERVICE_TEST_WORLD_.to_string();
     // t_spec.__rpc_serve_request(context::make_empty_context(), message_hello);

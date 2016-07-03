@@ -8,10 +8,12 @@
 #![feature(custom_derive, plugin)]
 #![plugin(serde_macros)]
 
+extern crate typemap;
 extern crate serde;
 extern crate serde_json;
-
-use context::Context;
+#[macro_use]
+extern crate log;
+extern crate hyper;
 
 pub mod context;
 pub mod codec;

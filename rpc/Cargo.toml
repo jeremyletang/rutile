@@ -11,7 +11,10 @@ include = ["Cargo.toml", "src/**/*.rs"]
 
 
 [dependencies]
+# clippy = "*"
 serde = "*"
 serde_json = "*"
 serde_macros = "*"
 typemap = "0.3.3"
+log = "0.3.6"
+hyper = "0.9.9"
