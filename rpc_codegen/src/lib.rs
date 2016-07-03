@@ -23,7 +23,6 @@ use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
 use syntax::ext::build::AstBuilder;
 use syntax::parse::token::InternedString;
 use syntax::ptr::P;
-// use syntax::ext::quote::rt::ToTokens;
 
 use aster::ident::ToIdent;
 use aster::item::ItemBuilder;
@@ -134,6 +133,22 @@ fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
     quote_expr!(cx, vec![$($endpoint_names.to_string(),)*])
 }
 
+fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
+
+                                codecs_tys: &Vec<P<Ty>>)
+                                -> P<Block> {
+    // let codecs_iter = codecs_tys.into_iter();
+    // let expr = quote_stmt!(cx, $codecs_iter);
+    let ident = "::rpc::codec::json_codec::JsonCodec".to_ident();
+    // let expr = quote_ty!(cx, ::rpc::codec::json_codec::JsonCodec);
+    quote_block!(cx, {
+        use ::rpc::codec::ContentType;
+        use rpc;
+        // vec![$ident::new().content_type(),]
+        vec![::rpc::codec::json_codec::JsonCodec::new().content_type(),]
+    }).unwrap()
+}
+
 fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
                                 service_name: &str,
                                 methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
@@ -155,7 +170,8 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
 fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                                 ty: &P<Ty>,
                                 generics: &Generics,
-                                methods: &Vec<ImplItem>)
+                                methods: &Vec<ImplItem>,
+                                codecs_tys: &Vec<P<Ty>>)
                                 -> Option<P<Item>> {
     let service_name = make_service_name(cx, &(*ty).node);
     let service_name_expr = ExprBuilder::new().str(&*service_name);
@@ -166,6 +182,8 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
     let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw).into_iter();
 
+    let list_supported_codecs_expr = make_supported_codecs_fn_expr(cx, codecs_tys);
+
     let where_clauses = generics.where_clause.clone();
 
     quote_item!(cx,
@@ -175,6 +193,10 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             }
             default fn __rpc_list_methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
+            }
+            default fn __rpc_list_supported_codecs(&self) -> Vec<String> {
+                use ::rpc::codec::ContentType;
+                $list_supported_codecs_expr
             }
             default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, m: String) -> bool {
                 use ::rpc::codec::{Codec, ContentType, MethodExtract};
@@ -223,13 +245,13 @@ fn find_mod_impl(m: &Mod) -> (Vec<ItemKind>, Vec<P<Item>>) {
     (impls, items)
 }
 
-fn generate_trait_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>) -> Vec<P<Item>> {
+fn generate_trait_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>, codec_tys: &Vec<P<Ty>>) -> Vec<P<Item>> {
     let mut items = vec![];
     for imp in impls {
         items.append(
             &mut match imp {
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
-                    let impl_item = make_service_trait_impl_item(cx, ty, generics, methods);
+                    let impl_item = make_service_trait_impl_item(cx, ty, generics, methods, codec_tys);
                     let mut impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
                     println!("{}", syntax::print::pprust::item_to_string(&*impl_item.clone().unwrap()));
                     // println!("{}", syntax::print::pprust::item_to_string(&*impl_endpoints.clone().unwrap()));
@@ -248,7 +270,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                       meta_item: &MetaItem,
                       annotatable: Annotatable)
                       -> Vec<Annotatable> {
-    let types = codec::extract_codec_from_meta_item(cx, meta_item);
+    let codec_tys = codec::extract_codec_from_meta_item(cx, meta_item);
     match annotatable {
         Annotatable::Item(ref i) => {
             match &(*i).node {
@@ -258,7 +280,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                         cx.span_fatal(span, "cannot found struct or enum impls");
                     }
                     let mut _mod = m.clone();
-                    items.append(&mut generate_trait_rpc_service(cx, &impls));
+                    items.append(&mut generate_trait_rpc_service(cx, &impls, &codec_tys));
                     _mod.items = items;
                     let item = P(Item {
                         ident: i.ident.clone(),

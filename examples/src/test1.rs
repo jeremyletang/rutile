@@ -12,8 +12,9 @@ use rpc::context::{self, Context};
 use rpc::service::Service;
 use rpc::codec::Message;
 use rpc::codec::json_codec::JsonMessage;
+use rpc::codec::ContentType;
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CustomRequest {}
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct CustomResponse {}
@@ -36,11 +37,11 @@ pub struct Error {}
 //     fn to_message(&self, m: &mut Message) {}
 // }
 
-#[rpc_service(json_codec = "::rpc::codec::json_codec::JsonCodec",
-              protobuf_codec = "::rpc_proto_codec::ProtobufCodec")]
+#[rpc_service(json_codec = "::rpc::codec::json_codec::JsonCodec")]
 pub mod test_service {
     // use super::{CustomRequest, CustomResponse, Error};
     use rpc::context::Context;
+    use super::CustomRequest;
 
     pub struct Test<T>
         where T: Send + Sync + 'static
@@ -51,8 +52,8 @@ pub mod test_service {
     impl<T> Test<T>
         where T: Send + Sync + 'static
     {
-        pub fn hello(&self, c: &Context, req: i32) -> Result<String, f32> {
-            println!("from hello: {}", req);
+        pub fn hello(&self, c: &Context, req: CustomRequest) -> Result<String, f32> {
+            // println!("from hello: {}", req);
             Ok("hello".to_string())
         }
         pub fn world(&self, c: &Context, req: String) -> Result<i32, f32> {
@@ -75,14 +76,15 @@ pub mod test_service {
 }
 
 fn main() {
+    ::rpc::codec::json_codec::JsonCodec::new().content_type();
     let _ = env_logger::init();
     let t = test_service::Test { i: 42 };
     let t_spec = test_service::Test { i: "s".to_string() };
     println!("SERVICE NAME IS: {}", t.__rpc_service_name());
-    let mut message_hello = JsonMessage::<i32>::default();
+    let mut message_hello = JsonMessage::<CustomRequest>::default();
     let mut message_world = JsonMessage::<String>::default();
     message_hello.set_method(test_service::TEST1_TEST_SERVICE_TEST_HELLO);
-    message_hello.set_body(&245);
+    // message_hello.set_body(&245);
     message_world.set_method(test_service::TEST1_TEST_SERVICE_TEST_WORLD);
     message_world.set_body(&"hello".to_string());
 

@@ -5,6 +5,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::error::Error;
 use super::{Codec, Message, MethodExtract, ContentType};
 use context::Context;
 use serde::{Serialize, Deserialize};
@@ -15,6 +16,12 @@ pub struct Dummy;
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct JsonCodec {}
+
+impl JsonCodec {
+    pub fn new() -> JsonCodec {
+        JsonCodec{}
+    }
+}
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct JsonMessage<T> where T: Default + Clone + Serialize + Deserialize {
@@ -41,8 +48,8 @@ impl MethodExtract for JsonCodec {
 }
 
 impl ContentType for JsonCodec {
-    fn content_type(&self) -> &str {
-        return "application/json";
+    fn content_type(&self) -> String {
+        return "application/json".to_string();
     }
 }
 
@@ -59,8 +66,11 @@ impl<T> Codec<T> for JsonCodec
         serde_json::to_string(&t).ok()
     }
 
-    fn decode_message(&self, raw_message: &String) -> Option<Box<Self::M>> {
-        serde_json::from_str(&raw_message).ok()
+    fn decode_message(&self, raw_message: &String) -> Result<Box<Self::M>, String> {
+        match serde_json::from_str(&raw_message) {
+            Ok(t) => Ok(t),
+            Err(e) => Err(e.description().to_string())
+        }
     }
 }
 
