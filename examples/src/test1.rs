@@ -13,6 +13,7 @@ use rpc::service::Service;
 use rpc::codec::Message;
 use rpc::codec::json_codec::JsonMessage;
 use rpc::codec::ContentType;
+use rpc::codec::json_codec::JsonCodec;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CustomRequest {}
@@ -37,9 +38,8 @@ pub struct Error {}
 //     fn to_message(&self, m: &mut Message) {}
 // }
 
-#[rpc_service(json_codec = "::rpc::codec::json_codec::JsonCodec")]
+#[rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
 pub mod test_service {
-    // use super::{CustomRequest, CustomResponse, Error};
     use rpc::context::Context;
     use super::CustomRequest;
 
@@ -49,6 +49,7 @@ pub mod test_service {
         pub i: T,
     }
 
+    // #[rpc_methods]
     impl<T> Test<T>
         where T: Send + Sync + 'static
     {

@@ -14,21 +14,48 @@ use aster::ident::ToIdent;
 use aster::ty::TyPathBuilder;
 use aster::path::PathBuilder;
 use aster::ty::TyBuilder;
+use aster::path::IntoPath;
 
-fn build_ty_from_string(span: &Span, s: String) -> P<Ty> {
-    let path = Path::from_ident(span.clone(), s.to_ident());
-    TyBuilder::new().build_path(path)
+fn split_string_to_path_segments(s: String) -> Vec<PathSegment> {
+    s.split("::").map(|sub|
+        PathSegment{
+            identifier: sub.to_ident(),
+            parameters: PathParameters::none(),
+        }
+    ).collect()
 }
 
-pub fn extract_codec_from_meta_item(cx: &mut ExtCtxt, mi: &MetaItem) -> Vec<P<Ty>> {
+fn build_path_from_string(span: &Span, s: String) -> Path {
+    // check two first
+    let mut s_to_split = s.clone();
+    let mut chars = s.chars();
+    let mut global = false;
+    if chars.next() == Some(':') && chars.next() == Some(':') {
+        // split only the rest of the characters + set path to global
+        global = true;
+        s_to_split = chars.collect::<String>().to_string();
+    }
+    Path {
+        span: span.clone(),
+        global: global,
+        segments: split_string_to_path_segments(s_to_split),
+    }
+}
+
+pub fn extract_codec_from_meta_item(cx: &mut ExtCtxt, mi: &MetaItem) -> Vec<Path> {
     match &mi.node {
         &MetaItemKind::List(_, ref l) => {
             l.iter().map(|e| {
                 match &e.node {
-                    &MetaItemKind::Word(ref s) => TyBuilder::new().id(s.to_string()),
+                    &MetaItemKind::Word(ref s) => s.to_string().into_path(),
                     &MetaItemKind::NameValue(ref v, ref lit) => {
                         match &lit.node {
-                            &LitKind::Str(ref s, _) => build_ty_from_string(&lit.span, s.to_string()),
+                            &LitKind::Str(ref s, _) => {
+                                if s.len() == 0 {
+                                    cx.span_fatal(lit.span, "error rpc_service attribute string literal cannot be empty")
+                                }
+                                build_path_from_string(&lit.span, s.to_string())
+                            },
                             _ => cx.span_fatal(lit.span, "error rpc_service attribute element must be a string literal")
                         }
                     },
