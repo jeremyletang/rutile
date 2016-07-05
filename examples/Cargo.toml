@@ -21,8 +21,8 @@ rpc_macros = { version = "0.1.0", path = "../rpc_macros" }
 rpc = { version = "0.1.0", path = "../rpc" }
 rpc_codegen = { version = "0.1.0", path = "../rpc_codegen" }
 rpc_macros = { version = "0.1.0", path = "../rpc_macros" }
-serde = "*"
-serde_json = "*"
-serde_macros = "*"
+serde = "0.7.12"
+serde_json = "0.7.4"
+serde_macros = "0.7.12"
 log = "0.3.6"
 env_logger = "0.3.3"

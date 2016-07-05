@@ -10,14 +10,14 @@ keywords = ["rpc", "http"]
 include = ["Cargo.toml", "src/**/*.rs"]
 
 [build-dependencies]
-quasi_codegen = { version = "^0.13.0", optional = true }
+quasi_codegen = { version = "^0.14.0", optional = true }
 # syntex = { version = "^0.36.0", optional = true }
 
 [dependencies]
-aster = { version = "^0.19.0", default-features = false }
+aster = { version = "^0.20.0", default-features = false }
 rpc = { version = "0.1.0", path = "../rpc" }
 clippy = { version = "^0.*", optional = true }
-quasi = { version = "^0.13.0", default-features = false }
-quasi_macros = { version = "^0.13.0", optional = false }
+quasi = { version = "^0.14.0", default-features = false }
+quasi_macros = { version = "^0.14.0", optional = false }
 # syntex = { version = "^0.36.0", optional = true }
 # syntex_syntax = { version = "^0.36.0", optional = true }

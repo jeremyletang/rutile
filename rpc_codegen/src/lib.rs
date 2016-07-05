@@ -224,7 +224,7 @@ fn make_endpoints_impl_item(cx: &mut ExtCtxt,
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
     let method_raw_idents = methods_raw_to_ident(&service_name, &methods_raw.clone()).into_iter();
     let items: Vec<P<Item>> = method_raw_idents.into_iter().zip(method_name_lits.into_iter()).map(|(a, b)|
-        quote_item!(cx, pub const $a: &'static str = $b;).unwrap()).collect();
+    quote_item!(cx, pub const $a: &'static str = $b;).unwrap()).collect();
     return items;
     // items.push(quote_item!(cx, pub const SERVICE_NAME: &'static str = $service_name_expr;).unwrap());
 }
