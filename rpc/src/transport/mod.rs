@@ -5,7 +5,31 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use service::Service;
+
 pub mod http_transport;
 
 pub trait Transport {
+    fn handle(self) -> ListeningTransportHandler;
+    fn using<S>(&mut self, s: S) where S: Service;
+}
+
+pub trait ListeningTransport {
+    fn close(&mut self) -> Result<(), ()>;
+}
+
+pub struct ListeningTransportHandler {
+    listening_transport: Box<ListeningTransport>
+}
+
+impl ListeningTransportHandler {
+    pub fn new<T>(lt: T) -> ListeningTransportHandler where T: 'static + ListeningTransport {
+        ListeningTransportHandler {
+            listening_transport: Box::new(lt)
+        }
+    }
+
+    pub fn close(&mut self) -> Result<(), ()> {
+        self.listening_transport.close()
+    }
 }

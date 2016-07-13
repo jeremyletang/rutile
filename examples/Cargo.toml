@@ -13,6 +13,10 @@ include = ["Cargo.toml", "src/**/*.rs"]
 name = "test1"
 path = "src/test1.rs"
 
+[[bin]]
+name = "server"
+path = "src/server.rs"
+
 [build-dependencies]
 rpc_codegen = { version = "0.1.0", path = "../rpc_codegen" }
 rpc_macros = { version = "0.1.0", path = "../rpc_macros" }

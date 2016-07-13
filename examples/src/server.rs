@@ -1,0 +1,23 @@
+#![feature(custom_derive, plugin, specialization)]
+#![plugin(rpc_macros, serde_macros)]
+#![allow(unused_imports, unused_variables, dead_code)]
+
+extern crate rpc;
+extern crate serde_json;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
+
+use std::net::SocketAddr;
+use rpc::server::Server;
+use hello_service::HelloService;
+
+#[rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
+mod hello_service;
+
+fn main() {
+    let _ = env_logger::init();
+    let mut server = Server::http(&"127.0.0.1:9999".parse().unwrap()).unwrap();
+    server.using(HelloService{});
+    server.run();
+}

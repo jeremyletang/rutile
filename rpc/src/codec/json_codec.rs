@@ -6,7 +6,7 @@
 // except according to those terms.
 
 use std::error::Error;
-use super::{Codec, Message, MethodExtract, ContentType};
+use codec::{Codec, Message, MethodExtract, ContentType};
 use context::Context;
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value};
