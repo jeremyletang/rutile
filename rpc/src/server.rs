@@ -6,16 +6,34 @@
 // except according to those terms.
 
 use service::Service;
+use transport::http_transport::HttpTransport;
 use transport::Transport;
 
-pub struct Server {
+pub struct Server<T = HttpTransport> where T: Transport {
     services: Vec<Box<Service>>,
-    transport: Box<Transport>,
+    transport: T,
 }
 
-impl Server {
+impl<T> Server<T> where T: Transport {
+    pub fn new(transport: T) -> Server<T> {
+        Server {
+            services: vec![],
+            transport: transport,
+        }
+    }
+
     pub fn using<S>(&mut self, s: S) -> &mut Self where S: Service {
         self.services.push(Box::new(s));
         return self;
+    }
+
+    pub fn run() {
+
+    }
+}
+
+impl Server<HttpTransport> {
+    pub fn http(addr: &SocketAddr) -> Result<Server<HttpTransport>> {
+        HttpTransport::new(addr)
     }
 }

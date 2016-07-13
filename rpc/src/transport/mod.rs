@@ -5,4 +5,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-pub trait Transport {}
+pub mod http_transport;
+
+pub trait Transport {
+}
