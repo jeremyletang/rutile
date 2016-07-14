@@ -6,10 +6,13 @@
 // except according to those terms.
 
 use std::error::Error;
-use codec::{Codec, Message, MethodExtract, ContentType};
-use context::Context;
+
+use hyper::header::ContentType;
+use hyper::mime::{Mime, TopLevel, SubLevel};
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value};
+
+use codec::{Codec, Message, MethodExtract, ContentTypeExtract};
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct Dummy;
@@ -47,9 +50,9 @@ impl MethodExtract for JsonCodec {
     }
 }
 
-impl ContentType for JsonCodec {
-    fn content_type(&self) -> String {
-        return "application/json".to_string();
+impl ContentTypeExtract for JsonCodec {
+    fn content_type(&self) -> ContentType {
+        ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![]))
     }
 }
 

@@ -5,8 +5,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use hyper::header::ContentType;
+
 use context::Context;
-use serde;
 
 pub mod json_codec;
 
@@ -20,7 +21,7 @@ pub trait Message: Clone + Default + Sized {
     fn set_id(&mut self, id: i64);
 }
 
-pub trait Codec<T>: Clone + Default + MethodExtract + ContentType {
+pub trait Codec<T>: Clone + Default + MethodExtract + ContentTypeExtract {
     type M: Message + Clone;
     fn extract_method_from_raw(&self, s: &String) -> Option<String> {
         return self.extract(s);
@@ -34,8 +35,8 @@ pub trait MethodExtract {
     fn extract(&self, s: &String) -> Option<String>;
 }
 
-pub trait ContentType {
-    fn content_type(&self) -> String;
+pub trait ContentTypeExtract {
+    fn content_type(&self) -> ContentType;
 }
 
 pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F)

@@ -21,3 +21,7 @@ pub mod client;
 pub mod transport;
 pub mod server;
 pub mod service;
+
+pub mod ext_exports {
+    pub use hyper::header::ContentType;
+}

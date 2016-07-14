@@ -12,7 +12,7 @@ use rpc::context::{self, Context};
 use rpc::service::Service;
 use rpc::codec::Message;
 use rpc::codec::json_codec::JsonMessage;
-use rpc::codec::ContentType;
+use rpc::codec::ContentTypeExtract;
 use rpc::codec::json_codec::JsonCodec;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
