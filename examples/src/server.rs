@@ -19,5 +19,6 @@ fn main() {
     let _ = env_logger::init();
     let mut server = Server::http(&"127.0.0.1:9999".parse().unwrap()).unwrap();
     server.using(HelloService{});
+    info!("starting server on 127.0.0.1:9999");
     server.run();
 }

@@ -5,16 +5,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use syntax::ast::*;
-use syntax::codemap::Span;
-use syntax::ext::base::ExtCtxt;
-use syntax::ptr::P;
-
 use aster::ident::ToIdent;
 use aster::ty::TyPathBuilder;
 use aster::path::PathBuilder;
 use aster::ty::TyBuilder;
 use aster::path::IntoPath;
+use syntax::ast::*;
+use syntax::codemap::Span;
+use syntax::ext::base::ExtCtxt;
+use syntax::ptr::P;
 
 fn split_string_to_path_segments(s: String) -> Vec<PathSegment> {
     s.split("::").map(|sub|

@@ -12,6 +12,7 @@ pub mod http_transport;
 pub trait Transport {
     fn handle(self) -> ListeningTransportHandler;
     fn using<S>(&mut self, s: S) where S: Service;
+    fn has_method(&self, &str) -> bool;
 }
 
 pub trait ListeningTransport {

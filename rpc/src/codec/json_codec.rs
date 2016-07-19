@@ -5,14 +5,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::error::Error;
-
 use hyper::header::ContentType;
 use hyper::mime::{Mime, TopLevel, SubLevel};
 use serde::{Serialize, Deserialize};
 use serde_json::{self, Value};
+use std::error::Error;
 
-use codec::{Codec, Message, MethodExtract, ContentTypeExtract};
+use codec::{Codec, Message, CodecMethodExtract, CodecContentTypeExtract};
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct Dummy;
@@ -43,14 +42,14 @@ impl<T> Message for JsonMessage<T> where T: Default + Clone + Serialize + Deseri
     fn set_id(&mut self, id: i64) { self.id = id; }
 }
 
-impl MethodExtract for JsonCodec {
+impl CodecMethodExtract for JsonCodec {
     fn extract(&self, s: &String) -> Option<String> {
         let value: Value = serde_json::from_str(&*s).unwrap();
         Some(value.find("method").unwrap().as_string().unwrap().to_string())
     }
 }
 
-impl ContentTypeExtract for JsonCodec {
+impl CodecContentTypeExtract for JsonCodec {
     fn content_type(&self) -> ContentType {
         ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![]))
     }

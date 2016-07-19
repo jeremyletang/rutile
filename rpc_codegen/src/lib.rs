@@ -17,13 +17,6 @@ extern crate rustc_plugin;
 extern crate quasi;
 extern crate aster;
 
-use syntax::ast::*;
-use syntax::codemap::{Span, spanned, BytePos};
-use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
-use syntax::ext::build::AstBuilder;
-use syntax::parse::token::InternedString;
-use syntax::ptr::P;
-
 use aster::ident::ToIdent;
 use aster::item::ItemBuilder;
 use aster::expr::ExprBuilder;
@@ -31,8 +24,13 @@ use aster::lit::LitBuilder;
 use aster::path::IntoPath;
 use aster::str::ToInternedString;
 use aster::ty::TyPathBuilder;
-
 use quasi::ToTokens;
+use syntax::ast::*;
+use syntax::codemap::{Span, spanned, BytePos};
+use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
+use syntax::ext::build::AstBuilder;
+use syntax::parse::token::InternedString;
+use syntax::ptr::P;
 
 mod codec;
 
@@ -160,9 +158,8 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let ref ret_err = retty[1];
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
-                let codec = ::rpc::codec::json_codec::JsonCodec{};
                 let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &m, f);
+                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f);
             }).unwrap()
         }).collect()
 }
@@ -195,13 +192,13 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 $list_endpoints_fn_expr
             }
             default fn __rpc_list_supported_codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
-                use ::rpc::codec::ContentTypeExtract;
+                use ::rpc::codec::CodecContentTypeExtract;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, m: String) -> bool {
-                use ::rpc::codec::{Codec, ContentTypeExtract, MethodExtract};
-                let c = ::rpc::codec::json_codec::JsonCodec{};
-                let method = c.extract(&m).unwrap();
+            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> bool {
+                use ::rpc::codec::{Codec, CodecContentTypeExtract, CodecMethodExtract};
+                let codec = ::rpc::codec::json_codec::JsonCodec{};
+                let method = codec.extract(&body).unwrap();
                 // let method = <::rpc::codec::json_codec::JsonCodec as Codec<::rpc::codec::json_codec::Dummy>>::extract_method_from_raw(&c, &m).unwrap();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*

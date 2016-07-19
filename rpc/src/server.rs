@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 
 use service::Service;
 use transport::http_transport::HttpTransport;
-use transport::{Transport, ListeningTransport, ListeningTransportHandler};
+use transport::{Transport, ListeningTransportHandler};
 
 pub struct Server<T = HttpTransport> where T: Transport {
     transport: T,
@@ -21,7 +21,7 @@ pub struct Listening {
 
 impl Listening {
     pub fn close(&mut self) {
-        self.listening_transport.close();
+        let _ = self.listening_transport.close();
     }
 }
 
@@ -43,7 +43,9 @@ impl<T> Server<T> where T: Transport {
         }
     }
 
-    pub fn has_method(&self, m: &str) -> bool {false}
+    pub fn has_method(&self, method: &str) -> bool {
+        return self.transport.has_method(method)
+    }
 }
 
 impl Server<HttpTransport> {

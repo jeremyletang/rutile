@@ -9,11 +9,11 @@ extern crate log;
 extern crate env_logger;
 
 use rpc::context::{self, Context};
-use rpc::service::Service;
 use rpc::codec::Message;
 use rpc::codec::json_codec::JsonMessage;
 use rpc::codec::ContentTypeExtract;
 use rpc::codec::json_codec::JsonCodec;
+use rpc::service::Service;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CustomRequest {}
