@@ -11,19 +11,16 @@ use serde::{Serialize, Deserialize};
 use serde_json::{self, Value};
 use std::error::Error;
 
-use codec::{Codec, Message, CodecMethodExtract, CodecContentTypeExtract};
+use codec::{Codec, Message, CodecBase};
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct Dummy;
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
-pub struct JsonCodec {}
-
-impl JsonCodec {
-    pub fn new() -> JsonCodec {
-        JsonCodec{}
-    }
+pub struct JsonCodec {
+    body: String
 }
+
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct JsonMessage<T> where T: Default + Clone + Serialize + Deserialize {
@@ -42,19 +39,19 @@ impl<T> Message for JsonMessage<T> where T: Default + Clone + Serialize + Deseri
     fn set_id(&mut self, id: i64) { self.id = id; }
 }
 
-impl CodecMethodExtract for JsonCodec {
-    fn extract(&self, s: &String) -> Option<String> {
-        let value: Value = serde_json::from_str(&*s).unwrap();
+impl CodecBase for JsonCodec {
+    fn empty() -> JsonCodec {
+        JsonCodec{body: "".to_string()}
+    }
+    fn method(&self, body: &str) -> Option<String> {
+        let value: Value = serde_json::from_str(body).unwrap();
         Some(value.find("method").unwrap().as_string().unwrap().to_string())
     }
-}
 
-impl CodecContentTypeExtract for JsonCodec {
     fn content_type(&self) -> ContentType {
         ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![]))
     }
 }
-
 
 impl<T> Codec<T> for JsonCodec
     where T: Serialize + Deserialize + Clone + Default {

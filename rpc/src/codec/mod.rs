@@ -21,26 +21,20 @@ pub trait Message: Clone + Default + Sized {
     fn set_id(&mut self, id: i64);
 }
 
-pub trait Codec<T>: Clone + Default + CodecMethodExtract + CodecContentTypeExtract {
+pub trait Codec<T>: Clone + Default + CodecBase {
     type M: Message + Clone;
     fn extract_method_from_raw(&self, s: &String) -> Option<String> {
-        return self.extract(s);
+        return self.method(s);
     }
     fn from_string(&self, &str) -> Option<T>;
     fn to_string(&self, &T) -> Option<String>;
     fn decode_message(&self, &String) -> Result<Box<Self::M>, String>;
 }
 
-pub trait CodecMethodExtract {
-    fn extract(&self, s: &String) -> Option<String>;
-}
-
-pub trait CodecContentTypeExtract {
+pub trait CodecBase {
+    fn empty() -> Self;
+    fn method(&self, s: &str) -> Option<String>;
     fn content_type(&self) -> ContentType;
-}
-
-pub trait CodecInit {
-    fn init() -> Self;
 }
 
 pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F)

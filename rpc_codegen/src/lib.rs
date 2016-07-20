@@ -137,7 +137,7 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
     for p in &mut codec_paths {
         p.segments.push(
             PathSegment{
-                identifier: "new".to_ident(),
+                identifier: "empty".to_ident(),
                 parameters: PathParameters::none(),
         });
     }
@@ -192,14 +192,13 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 $list_endpoints_fn_expr
             }
             default fn __rpc_list_supported_codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
-                use ::rpc::codec::CodecContentTypeExtract;
+                use ::rpc::codec::CodecBase;
                 $list_supported_codecs_expr
             }
             default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> bool {
-                use ::rpc::codec::{Codec, CodecContentTypeExtract, CodecMethodExtract};
-                let codec = ::rpc::codec::json_codec::JsonCodec{};
-                let method = codec.extract(&body).unwrap();
-                // let method = <::rpc::codec::json_codec::JsonCodec as Codec<::rpc::codec::json_codec::Dummy>>::extract_method_from_raw(&c, &m).unwrap();
+                use ::rpc::codec::{Codec, CodecBase};
+                let codec = ::rpc::codec::json_codec::JsonCodec::empty();
+                let method = codec.method(&body).unwrap();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
                     _ => return false
