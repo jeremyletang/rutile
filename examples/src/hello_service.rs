@@ -1,3 +1,4 @@
+#![rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
 
 use rpc::context::Context;
 

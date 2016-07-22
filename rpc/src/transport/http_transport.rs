@@ -96,15 +96,7 @@ impl Handler for HttpHandler {
             make_method_not_allowed_error(res, req.method);
             return
         }
-    //     if r.Method != "POST" {
-	// 	s.writeError(w, 405, "rpc: POST method required, received "+r.Method)
-	// 	return
-    // 	}
-    // 	contentType := r.Header.Get("Content-Type")
-    // 	idx := strings.Index(contentType, ";")
-    // 	if idx != -1 {
-    // 		contentType = contentType[:idx]
-    // }
+        
     }
 }
 
