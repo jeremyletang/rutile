@@ -14,7 +14,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 
 use context::Context;
-use service::Service;
+use service::{Service, ServeRequestError};
 use transport::{Transport, ListeningTransport, ListeningTransportHandler};
 
 pub struct HttpTransport {
@@ -119,20 +119,37 @@ impl Handler for HttpHandler {
 
         // read request body
         let mut body = String::new();
-        let mut method_found = false;
         req.read_to_string(&mut body);
 
         // then call the services to execute the method
         for s in &self.services {
-            if s.__rpc_serve_request(Context::new(), body.clone()) {
-                method_found = true;
-                break;
+            match s.__rpc_serve_request(Context::new(), body.clone()) {
+                Ok(_) => return,
+                Err(e) => match e {
+                    ServeRequestError::UnrecognizedMethod => {
+                        // continue for now, we may have over services that can handle this method
+                    },
+                    ServeRequestError::InvalidBody(err_string) => {
+                        // the method match but the body was Invalid
+                        // so we can return now
+                        make_bad_request_error(
+                            &format!("rpc: the body for the method {}, has an unexpected format: {}", "yolo", err_string), res);
+                        return;
+                    },
+                    ServeRequestError::Custom(err_string) => {
+                        // another kind of error occured,
+                        // just write a nice message for the caller
+                        make_bad_request_error(
+                            &format!("rpc: something strange append ... this may help: {}", err_string), res);
+                        return;
+                    }
+                }
             }
         }
 
-        if !method_found {
-            make_bad_request_error(&format!("rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
-        }
+        // if we arrive here, the method was not found
+        // just write an error
+        make_bad_request_error(&format!("rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
     }
 }
 
