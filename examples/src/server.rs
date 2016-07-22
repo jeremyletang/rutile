@@ -12,7 +12,6 @@ use std::net::SocketAddr;
 use rpc::server::Server;
 use hello_service::HelloService;
 
-#[rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
 mod hello_service;
 
 fn main() {
