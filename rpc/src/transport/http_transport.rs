@@ -10,8 +10,10 @@ use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
 use std::io::Write;
+use std::io::Read;
 use std::net::SocketAddr;
 
+use context::Context;
 use service::Service;
 use transport::{Transport, ListeningTransport, ListeningTransportHandler};
 
@@ -98,7 +100,7 @@ impl HttpHandler {
 }
 
 impl Handler for HttpHandler {
-    fn handle<'a, 'k>(&'a self, req: Request<'a, 'k>, mut res: Response<'a, Fresh>) {
+    fn handle<'a, 'k>(&'a self, mut req: Request<'a, 'k>, mut res: Response<'a, Fresh>) {
         // first check method
         if req.method != Method::Post {
             make_method_not_allowed_error(res, req.method);
@@ -106,23 +108,35 @@ impl Handler for HttpHandler {
         }
         // then check content-type
         if !req.headers.has::<ContentType>() {
-            make_content_type_error("rpc: missing Content-Type header", res);
+            make_bad_request_error("rpc: missing Content-Type header", res);
             return
         }
         // check is content-type is accepted by one of the services
-        let ct = &req.headers.get::<ContentType>().unwrap();
-        if !self.content_types.contains(ct) {
-            return make_content_type_error(&format!("rpc: unrecognized Content-Type, {}", ct), res);
+        let ct = req.headers.get::<ContentType>().unwrap().clone();
+        if !self.content_types.contains(&ct) {
+            return make_bad_request_error(&format!("rpc: unrecognized Content-Type, {}", ct), res);
         }
+
+        // read request body
+        let mut body = String::new();
+        let mut method_found = false;
+        req.read_to_string(&mut body);
 
         // then call the services to execute the method
         for s in &self.services {
-            s
+            if s.__rpc_serve_request(Context::new(), body.clone()) {
+                method_found = true;
+                break;
+            }
+        }
+
+        if !method_found {
+            make_bad_request_error(&format!("rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
         }
     }
 }
 
-fn make_content_type_error<'a,>(body: &str, mut res: Response<'a, Fresh>) {
+fn make_bad_request_error<'a,>(body: &str, mut res: Response<'a, Fresh>) {
     res.headers_mut().set(ContentLength(body.len() as u64));
     *res.status_mut() = ::hyper::status::StatusCode::BadRequest;
     let mut res = res.start().unwrap();
