@@ -195,15 +195,15 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 use ::rpc::codec::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> bool {
+            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> Result<(), ::rpc::service::ServeRequestError> {
                 use ::rpc::codec::{Codec, CodecBase};
                 let codec = ::rpc::codec::json_codec::JsonCodec::empty();
                 let method = codec.method(&body).unwrap();
                 let s = match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
-                    _ => return false
+                    _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod)
                 };
-                return true;
+                return Ok(());
             }
         }
     )

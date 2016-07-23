@@ -5,15 +5,16 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-
-use hyper::header::ContentLength;
+use hyper::header::{ContentType, ContentLength};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
 use std::io::Write;
+use std::io::Read;
 use std::net::SocketAddr;
 
-use service::Service;
+use context::Context;
+use service::{Service, ServeRequestError};
 use transport::{Transport, ListeningTransport, ListeningTransportHandler};
 
 pub struct HttpTransport {
@@ -80,32 +81,83 @@ impl Transport for HttpTransport {
 
 pub struct HttpHandler {
     services: Vec<Box<Service>>,
+    content_types: Vec<ContentType>,
+
 }
 
 impl HttpHandler {
     pub fn new(services: Vec<Box<Service>>) -> HttpHandler {
+        let mut ct = vec![];
+        for s in &services {
+            ct.append(&mut s.__rpc_list_supported_codecs());
+        }
+        ct.dedup();
         HttpHandler {
-            services: services
+            services: services,
+            content_types: ct,
         }
     }
 }
 
 impl Handler for HttpHandler {
-    fn handle<'a, 'k>(&'a self, req: Request<'a, 'k>, mut res: Response<'a, Fresh>) {
+    fn handle<'a, 'k>(&'a self, mut req: Request<'a, 'k>, mut res: Response<'a, Fresh>) {
+        // first check method
         if req.method != Method::Post {
             make_method_not_allowed_error(res, req.method);
             return
         }
-    //     if r.Method != "POST" {
-	// 	s.writeError(w, 405, "rpc: POST method required, received "+r.Method)
-	// 	return
-    // 	}
-    // 	contentType := r.Header.Get("Content-Type")
-    // 	idx := strings.Index(contentType, ";")
-    // 	if idx != -1 {
-    // 		contentType = contentType[:idx]
-    // }
+        // then check content-type
+        if !req.headers.has::<ContentType>() {
+            make_bad_request_error("rpc: missing Content-Type header", res);
+            return
+        }
+        // check is content-type is accepted by one of the services
+        let ct = req.headers.get::<ContentType>().unwrap().clone();
+        if !self.content_types.contains(&ct) {
+            return make_bad_request_error(&format!("rpc: unrecognized Content-Type, {}", ct), res);
+        }
+
+        // read request body
+        let mut body = String::new();
+        req.read_to_string(&mut body);
+
+        // then call the services to execute the method
+        for s in &self.services {
+            match s.__rpc_serve_request(Context::new(), body.clone()) {
+                Ok(_) => return,
+                Err(e) => match e {
+                    ServeRequestError::UnrecognizedMethod => {
+                        // continue for now, we may have over services that can handle this method
+                    },
+                    ServeRequestError::InvalidBody(err_string) => {
+                        // the method match but the body was Invalid
+                        // so we can return now
+                        make_bad_request_error(
+                            &format!("rpc: the body for the method {}, has an unexpected format: {}", "yolo", err_string), res);
+                        return;
+                    },
+                    ServeRequestError::Custom(err_string) => {
+                        // another kind of error occured,
+                        // just write a nice message for the caller
+                        make_bad_request_error(
+                            &format!("rpc: something strange append ... this may help: {}", err_string), res);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // if we arrive here, the method was not found
+        // just write an error
+        make_bad_request_error(&format!("rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
     }
+}
+
+fn make_bad_request_error<'a,>(body: &str, mut res: Response<'a, Fresh>) {
+    res.headers_mut().set(ContentLength(body.len() as u64));
+    *res.status_mut() = ::hyper::status::StatusCode::BadRequest;
+    let mut res = res.start().unwrap();
+    let _ = res.write_all(body.as_bytes());
 }
 
 fn make_method_not_allowed_error<'a,>(mut res: Response<'a, Fresh>, method: Method) {
