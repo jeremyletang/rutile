@@ -209,8 +209,11 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 use ::rpc::codec::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> Result<(), ::rpc::service::ServeRequestError> {
+            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, tr: &mut ::rpc::transport::TransportRequest)
+                -> Result<(), ::rpc::service::ServeRequestError> {
                 use ::rpc::codec::{Codec, CodecBase};
+                let mut body = String::new();
+                let _ = tr.read_to_string(&mut body);
                 let codec = ::rpc::codec::json_codec::JsonCodec::empty();
                 let method = match codec.method(&body) {
                     Ok(s) => s,

@@ -5,9 +5,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::io::{Read, Write};
+
 use service::Service;
 
 pub mod http_transport;
+
+pub trait TransportRequest: Read {}
+
+pub trait TransportResponse: Write {}
 
 pub trait Transport {
     fn handle(self) -> ListeningTransportHandler;

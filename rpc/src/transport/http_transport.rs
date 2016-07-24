@@ -9,13 +9,12 @@ use hyper::header::{Headers, ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
-use std::io::Write;
-use std::io::Read;
+use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
 use context::Context;
 use service::{Service, ServeRequestError};
-use transport::{Transport, ListeningTransport, ListeningTransportHandler};
+use transport::{Transport, ListeningTransport, ListeningTransportHandler, TransportRequest};
 
 pub struct HttpTransport {
     server: Server<HttpListener>,
@@ -84,6 +83,18 @@ pub struct HttpHandler {
     content_types: Vec<ContentType>,
 }
 
+pub struct HttpTransportRequest<'a, 'k: 'a> {
+    req: Request<'a, 'k>,
+}
+
+impl<'a, 'k> Read for HttpTransportRequest<'a, 'k> {
+    fn read(&mut self, data: &mut [u8]) -> io::Result<usize> {
+        self.req.read(data)
+    }
+}
+
+impl<'a, 'k> TransportRequest for HttpTransportRequest<'a, 'k> {}
+
 impl HttpHandler {
     pub fn new(services: Vec<Box<Service>>) -> HttpHandler {
         let mut ct = vec![];
@@ -99,7 +110,7 @@ impl HttpHandler {
 }
 
 impl Handler for HttpHandler {
-    fn handle<'a, 'k>(&'a self, mut req: Request<'a, 'k>, mut res: Response<'a, Fresh>) {
+    fn handle<'a, 'k>(&'a self, mut req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
         // add base headers
         make_base_headers(&mut res);
         // first check method
@@ -118,13 +129,13 @@ impl Handler for HttpHandler {
             return make_bad_request_error(&format!("rutile-rpc: unrecognized Content-Type, {}", ct), res);
         }
 
-        // read request body
-        let mut body = String::new();
-        req.read_to_string(&mut body);
+        // make the HttpTransportRequest
+        let mut transport_request = HttpTransportRequest{req: req};
+
 
         // then call the services to execute the method
         for s in &self.services {
-            match s.__rpc_serve_request(Context::new(), body.clone()) {
+            match s.__rpc_serve_request(Context::new(), &mut transport_request) {
                 Ok(_) => return,
                 Err(e) => match e {
                     ServeRequestError::UnrecognizedMethod => {
