@@ -5,7 +5,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use hyper::header::{ContentType, ContentLength};
+use hyper::header::{Headers, ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
@@ -82,7 +82,6 @@ impl Transport for HttpTransport {
 pub struct HttpHandler {
     services: Vec<Box<Service>>,
     content_types: Vec<ContentType>,
-
 }
 
 impl HttpHandler {
@@ -101,6 +100,8 @@ impl HttpHandler {
 
 impl Handler for HttpHandler {
     fn handle<'a, 'k>(&'a self, mut req: Request<'a, 'k>, mut res: Response<'a, Fresh>) {
+        // add base headers
+        make_base_headers(&mut res);
         // first check method
         if req.method != Method::Post {
             make_method_not_allowed_error(res, req.method);
@@ -155,6 +156,10 @@ impl Handler for HttpHandler {
         // just write an error
         make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
     }
+}
+
+fn make_base_headers<'a,>(res: &mut Response<'a, Fresh>) {
+    res.headers_mut().set(Allow(vec![Method::Post]));
 }
 
 fn make_bad_request_error<'a,>(body: &str, mut res: Response<'a, Fresh>) {

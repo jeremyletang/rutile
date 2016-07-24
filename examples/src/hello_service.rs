@@ -1,6 +1,7 @@
 #![feature(custom_derive, plugin, specialization, custom_attribute)]
 #![plugin(rpc_macros, serde_macros)]
 #![rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
+#![allow(unused_imports)]
 
 extern crate rpc;
 
