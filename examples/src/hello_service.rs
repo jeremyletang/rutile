@@ -1,6 +1,6 @@
+#![rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
 #![feature(custom_derive, plugin, specialization, custom_attribute)]
 #![plugin(rpc_macros, serde_macros)]
-#![rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
 #![allow(unused_imports)]
 
 extern crate rpc;
@@ -16,12 +16,12 @@ pub struct Person {
 }
 
 impl HelloService {
-    pub fn hello(&self, c: &Context, req: String) -> Result<i32, f32> {
+    pub fn hello(&self, _: &Context, req: String) -> Result<i32, f32> {
         println!("from world: {}", req);
         Ok(42)
     }
 
-    pub fn create_person(&self, c: &Context, req: Person) -> Result<bool, bool> {
+    pub fn create_person(&self, _: &Context, req: Person) -> Result<bool, bool> {
         println!("from create_person: {:?}", req);
         Ok(true)
     }

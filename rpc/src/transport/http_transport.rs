@@ -5,11 +5,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use hyper::header::{Headers, ContentType, ContentLength, Allow};
+use hyper::header::{ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
-use std::any::Any;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
@@ -44,7 +43,7 @@ impl HttpTransport {
                     services: vec![],
                 })
             },
-            Err(e) => {
+            Err(_) => {
                 Err(())
             }
         }
@@ -53,7 +52,7 @@ impl HttpTransport {
 
 impl ListeningTransport for ListeningHttpTransport {
     fn close(&mut self) -> Result<(), ()> {
-        self.listening.close();
+        let _ = self.listening.close();
         return Ok(())
     }
 }
@@ -133,7 +132,7 @@ impl HttpHandler {
 }
 
 impl Handler for HttpHandler {
-    fn handle<'a, 'k>(&'a self, mut req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
+    fn handle<'a, 'k>(&'a self, req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
         // add base headers
         make_base_headers(&mut res);
         // first check method

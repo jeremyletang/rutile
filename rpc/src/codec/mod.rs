@@ -6,7 +6,6 @@
 // except according to those terms.
 
 use hyper::header::ContentType;
-use std::io::Write;
 
 use context::Context;
 use service::ServeRequestError;
