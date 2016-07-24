@@ -5,9 +5,18 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::io::{Read, Write};
+use std::net::SocketAddr;
+
 use service::Service;
 
 pub mod http_transport;
+
+pub trait TransportRequest: Read {
+    fn remote_addr(&self) -> SocketAddr;
+}
+
+pub trait TransportResponse: Write {}
 
 pub trait Transport {
     fn handle(self) -> ListeningTransportHandler;

@@ -151,7 +151,7 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
     for p in &mut codec_paths {
         p.segments.push(
             PathSegment{
-                identifier: "empty".to_ident(),
+                identifier: "default".to_ident(),
                 parameters: PathParameters::none(),
         });
     }
@@ -173,7 +173,7 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
                 let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f)
+                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
             }).unwrap()
         }).collect()
 }
@@ -209,16 +209,21 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 use ::rpc::codec::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> Result<(), ::rpc::service::ServeRequestError> {
+            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context,
+                                                  req: &mut ::rpc::transport::TransportRequest,
+                                                  res: &mut ::rpc::transport::TransportResponse)
+                                                  -> Result<(), ::rpc::service::ServeRequestError> {
                 use ::rpc::codec::{Codec, CodecBase};
-                let codec = ::rpc::codec::json_codec::JsonCodec::empty();
+                let mut body = String::new();
+                let _ = req.read_to_string(&mut body);
+                let codec = ::rpc::codec::json_codec::JsonCodec::default();
                 let method = match codec.method(&body) {
                     Ok(s) => s,
                     Err(e) => return Err(::rpc::service::ServeRequestError::NoMethodProvided(e))
                 };
                 match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
-                    _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod)
+                    _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod(method))
                 }
             }
         }
