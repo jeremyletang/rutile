@@ -5,4 +5,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-pub trait Transport {}
+use std::error::Error as StdError;
+use std::fmt;
+use std::io::Error as IoError;

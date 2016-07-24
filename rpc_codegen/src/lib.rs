@@ -17,13 +17,6 @@ extern crate rustc_plugin;
 extern crate quasi;
 extern crate aster;
 
-use syntax::ast::*;
-use syntax::codemap::{Span, spanned, BytePos};
-use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
-use syntax::ext::build::AstBuilder;
-use syntax::parse::token::InternedString;
-use syntax::ptr::P;
-
 use aster::ident::ToIdent;
 use aster::item::ItemBuilder;
 use aster::expr::ExprBuilder;
@@ -31,10 +24,29 @@ use aster::lit::LitBuilder;
 use aster::path::IntoPath;
 use aster::str::ToInternedString;
 use aster::ty::TyPathBuilder;
-
 use quasi::ToTokens;
+use syntax::ast::*;
+use syntax::codemap::{Span, spanned, BytePos};
+use syntax::ext::base::{Annotatable, ExtCtxt, MultiModifier};
+use syntax::ext::build::AstBuilder;
+use syntax::parse::token::InternedString;
+use syntax::ptr::P;
 
 mod codec;
+
+fn camel_to_snake(mut camel: String) -> String {
+    let mut snake = String::new();
+    if camel.len() > 0 {
+        snake.push(camel.remove(0).to_lowercase().next().unwrap())
+    }
+    for c in camel.chars() {
+        if c.is_uppercase() {
+            snake.push('_');
+        }
+        snake.push(c.to_lowercase().next().unwrap())
+    }
+    return snake;
+}
 
 fn methods_raw_to_ident(service_name: &str,
                         methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
@@ -55,7 +67,7 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
     let mut ty_name = match ty_kind {
         &TyKind::Path(_, ref p) => {
             p.segments.iter().fold("".to_string(), |acc, seg| {
-                acc + &syntax::print::pprust::ident_to_string(seg.identifier) + "."
+                acc + &camel_to_snake(syntax::print::pprust::ident_to_string(seg.identifier)) + "."
             })
         }
         _ => unreachable!(),
@@ -139,7 +151,7 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
     for p in &mut codec_paths {
         p.segments.push(
             PathSegment{
-                identifier: "new".to_ident(),
+                identifier: "empty".to_ident(),
                 parameters: PathParameters::none(),
         });
     }
@@ -160,9 +172,8 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let ref ret_err = retty[1];
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
-                let codec = ::rpc::codec::json_codec::JsonCodec{};
                 let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &m, f);
+                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f)
             }).unwrap()
         }).collect()
 }
@@ -194,20 +205,21 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             default fn __rpc_list_methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            default fn __rpc_list_supported_codecs(&self) -> Vec<String> {
-                use ::rpc::codec::ContentType;
+            default fn __rpc_list_supported_codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
+                use ::rpc::codec::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, m: String) -> bool {
-                use ::rpc::codec::{Codec, ContentType, MethodExtract};
-                let c = ::rpc::codec::json_codec::JsonCodec{};
-                let method = c.extract(&m).unwrap();
-                // let method = <::rpc::codec::json_codec::JsonCodec as Codec<::rpc::codec::json_codec::Dummy>>::extract_method_from_raw(&c, &m).unwrap();
-                let s = match &*method {
-                    $($method_name_lits => $match_fn_exprs,)*
-                    _ => return false
+            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> Result<(), ::rpc::service::ServeRequestError> {
+                use ::rpc::codec::{Codec, CodecBase};
+                let codec = ::rpc::codec::json_codec::JsonCodec::empty();
+                let method = match codec.method(&body) {
+                    Ok(s) => s,
+                    Err(e) => return Err(::rpc::service::ServeRequestError::NoMethodProvided(e))
                 };
-                return true;
+                match &*method {
+                    $($method_name_lits => $match_fn_exprs,)*
+                    _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod)
+                }
             }
         }
     )

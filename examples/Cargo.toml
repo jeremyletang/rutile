@@ -10,8 +10,16 @@ keywords = ["rpc", "http"]
 include = ["Cargo.toml", "src/**/*.rs"]
 
 [[bin]]
-name = "test1"
-path = "src/test1.rs"
+name = "server"
+path = "src/server.rs"
+
+[[bin]]
+name = "client"
+path = "src/client.rs"
+
+[lib]
+name = "hello_service"
+path = "src/hello_service.rs"
 
 [build-dependencies]
 rpc_codegen = { version = "0.1.0", path = "../rpc_codegen" }
