@@ -19,6 +19,7 @@ pub trait Response {
 
 pub enum ServeRequestError {
     UnrecognizedMethod,
+    NoMethodProvided(String),
     InvalidBody(String),
     Custom(String),
 }

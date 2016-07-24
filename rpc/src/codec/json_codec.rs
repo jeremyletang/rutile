@@ -43,9 +43,20 @@ impl CodecBase for JsonCodec {
     fn empty() -> JsonCodec {
         JsonCodec{body: "".to_string()}
     }
-    fn method(&self, body: &str) -> Option<String> {
-        let value: Value = serde_json::from_str(body).unwrap();
-        Some(value.find("method").unwrap().as_string().unwrap().to_string())
+    fn method(&self, body: &str) -> Result<String, String> {
+        let value: Value = match serde_json::from_str(body) {
+            Ok(v) => v,
+            Err(e) => return Err(format!("invalid json, {}", e))
+        };
+        match value.find("method") {
+            Some(v) => {
+                match v.as_string() {
+                    Some(s) => Ok(s.to_string()),
+                    None => Err("method field found but not a string".to_string())
+                }
+            },
+            None => Err("not method field found".to_string())
+        }
     }
 
     fn content_type(&self) -> ContentType {
@@ -57,12 +68,18 @@ impl<T> Codec<T> for JsonCodec
     where T: Serialize + Deserialize + Clone + Default {
     type M = JsonMessage<T>;
 
-    fn from_string(&self, s: &str) -> Option<T> {
-        serde_json::from_str(&s).ok()
+    fn from_string(&self, s: &str) -> Result<T, String> {
+        match serde_json::from_str(&s) {
+            Ok(t) => Ok(t),
+            Err(e) => Err(e.description().to_string())
+        }
     }
 
-    fn to_string(&self, t: &T) -> Option<String> {
-        serde_json::to_string(&t).ok()
+    fn to_string(&self, t: &T) -> Result<String, String> {
+        match serde_json::to_string(&t) {
+            Ok(s) => Ok(s),
+            Err(e) => Err(e.description().to_string())
+        }
     }
 
     fn decode_message(&self, raw_message: &String) -> Result<Box<Self::M>, String> {
@@ -72,12 +89,3 @@ impl<T> Codec<T> for JsonCodec
         }
     }
 }
-
-// pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F)
-//     where F: FnMut(&Context, Request) -> Result<Response, Error>,
-//     Request: Default + Deserialize + Serialize,
-//     C: Codec<Request> + Codec<Response> + Codec<&Message<Request>> {
-//     let req = Request::default();
-//     println!("thug life");
-//     f(ctx, req);
-// }

@@ -108,13 +108,13 @@ impl Handler for HttpHandler {
         }
         // then check content-type
         if !req.headers.has::<ContentType>() {
-            make_bad_request_error("rpc: missing Content-Type header", res);
+            make_bad_request_error("rutile-rpc: missing Content-Type header", res);
             return
         }
         // check is content-type is accepted by one of the services
         let ct = req.headers.get::<ContentType>().unwrap().clone();
         if !self.content_types.contains(&ct) {
-            return make_bad_request_error(&format!("rpc: unrecognized Content-Type, {}", ct), res);
+            return make_bad_request_error(&format!("rutile-rpc: unrecognized Content-Type, {}", ct), res);
         }
 
         // read request body
@@ -129,18 +129,22 @@ impl Handler for HttpHandler {
                     ServeRequestError::UnrecognizedMethod => {
                         // continue for now, we may have over services that can handle this method
                     },
+                    ServeRequestError::NoMethodProvided(err_string) => {
+                        make_bad_request_error(&format!("rutile-rpc: {}", err_string), res);
+                        return;
+                    },
                     ServeRequestError::InvalidBody(err_string) => {
                         // the method match but the body was Invalid
                         // so we can return now
                         make_bad_request_error(
-                            &format!("rpc: the body for the method {}, has an unexpected format: {}", "yolo", err_string), res);
+                            &format!("rutile-rpc: the body for the method {}, has an unexpected format: {}", "yolo", err_string), res);
                         return;
                     },
                     ServeRequestError::Custom(err_string) => {
                         // another kind of error occured,
                         // just write a nice message for the caller
                         make_bad_request_error(
-                            &format!("rpc: something strange append ... this may help: {}", err_string), res);
+                            &format!("rutile-rpc: something strange append ... this may help: {}", err_string), res);
                         return;
                     }
                 }
@@ -149,7 +153,7 @@ impl Handler for HttpHandler {
 
         // if we arrive here, the method was not found
         // just write an error
-        make_bad_request_error(&format!("rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
+        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
     }
 }
 
@@ -161,7 +165,7 @@ fn make_bad_request_error<'a,>(body: &str, mut res: Response<'a, Fresh>) {
 }
 
 fn make_method_not_allowed_error<'a,>(mut res: Response<'a, Fresh>, method: Method) {
-    let body = format!("rpc: POST method required, received {}", method);
+    let body = format!("rutile-rpc: POST method required, received {}", method);
     res.headers_mut().set(ContentLength(body.len() as u64));
     *res.status_mut() = ::hyper::status::StatusCode::MethodNotAllowed;
     let mut res = res.start().unwrap();

@@ -159,7 +159,7 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
             quote_block!(cx, {
                 let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f);
+                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f)
             }).unwrap()
         }).collect()
 }
@@ -198,12 +198,14 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context, body: String) -> Result<(), ::rpc::service::ServeRequestError> {
                 use ::rpc::codec::{Codec, CodecBase};
                 let codec = ::rpc::codec::json_codec::JsonCodec::empty();
-                let method = codec.method(&body).unwrap();
-                let s = match &*method {
+                let method = match codec.method(&body) {
+                    Ok(s) => s,
+                    Err(e) => return Err(::rpc::service::ServeRequestError::NoMethodProvided(e))
+                };
+                match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
                     _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod)
-                };
-                return Ok(());
+                }
             }
         }
     )
