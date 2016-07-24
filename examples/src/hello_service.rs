@@ -1,4 +1,8 @@
+#![feature(custom_derive, plugin, specialization, custom_attribute)]
+#![plugin(rpc_macros, serde_macros)]
 #![rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
+
+extern crate rpc;
 
 use rpc::context::Context;
 
