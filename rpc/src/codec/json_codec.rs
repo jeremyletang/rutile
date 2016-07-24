@@ -39,10 +39,15 @@ impl<T> Message for JsonMessage<T> where T: Default + Clone + Serialize + Deseri
     fn set_id(&mut self, id: i64) { self.id = id; }
 }
 
-impl CodecBase for JsonCodec {
-    fn empty() -> JsonCodec {
-        JsonCodec{body: "".to_string()}
+impl JsonCodec {
+    pub fn new() -> JsonCodec {
+        JsonCodec {
+            body: "".to_string()
+        }
     }
+}
+
+impl CodecBase for JsonCodec {
     fn method(&self, body: &str) -> Result<String, String> {
         let value: Value = match serde_json::from_str(body) {
             Ok(v) => v,
@@ -85,6 +90,18 @@ impl<T> Codec<T> for JsonCodec
     fn decode_message(&self, raw_message: &String) -> Result<Box<Self::M>, String> {
         match serde_json::from_str(&raw_message) {
             Ok(t) => Ok(t),
+            Err(e) => Err(e.description().to_string())
+        }
+    }
+
+    fn encode_message(&self, body: &T, method: &str, id: i64) -> Result<String, String> {
+        let json_message = JsonMessage{
+            method: method.to_string(),
+            body: body.clone(),
+            id: id,
+        };
+        match serde_json::to_string(&json_message) {
+            Ok(s) => Ok(s),
             Err(e) => Err(e.description().to_string())
         }
     }

@@ -9,12 +9,14 @@ use hyper::header::{Headers, ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
+use std::any::Any;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
 use context::Context;
 use service::{Service, ServeRequestError};
-use transport::{Transport, ListeningTransport, ListeningTransportHandler, TransportRequest};
+use transport::{Transport, ListeningTransport,
+    ListeningTransportHandler, TransportRequest, TransportResponse};
 
 pub struct HttpTransport {
     server: Server<HttpListener>,
@@ -78,11 +80,6 @@ impl Transport for HttpTransport {
     }
 }
 
-pub struct HttpHandler {
-    services: Vec<Box<Service>>,
-    content_types: Vec<ContentType>,
-}
-
 pub struct HttpTransportRequest<'a, 'k: 'a> {
     req: Request<'a, 'k>,
 }
@@ -93,7 +90,33 @@ impl<'a, 'k> Read for HttpTransportRequest<'a, 'k> {
     }
 }
 
-impl<'a, 'k> TransportRequest for HttpTransportRequest<'a, 'k> {}
+impl<'a, 'k> TransportRequest for HttpTransportRequest<'a, 'k> {
+    fn remote_addr(&self) -> SocketAddr {
+        self.req.remote_addr
+    }
+}
+
+pub struct HttpTransportResponse {
+    buf: Vec<u8>
+}
+
+impl Write for HttpTransportResponse {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        self.buf.extend_from_slice(data);
+        Ok(data.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
+impl TransportResponse for HttpTransportResponse {}
+
+
+pub struct HttpHandler {
+    services: Vec<Box<Service>>,
+    content_types: Vec<ContentType>,
+}
 
 impl HttpHandler {
     pub fn new(services: Vec<Box<Service>>) -> HttpHandler {
@@ -131,15 +154,23 @@ impl Handler for HttpHandler {
 
         // make the HttpTransportRequest
         let mut transport_request = HttpTransportRequest{req: req};
+        let mut transport_response = HttpTransportResponse{buf: vec![]};
 
+        // FIXME(JEREMY): we need in the future to fin a better way to handle method handling from this side
+        let mut method_error = String::new();
 
         // then call the services to execute the method
         for s in &self.services {
-            match s.__rpc_serve_request(Context::new(), &mut transport_request) {
-                Ok(_) => return,
+            match s.__rpc_serve_request(Context::new(), &mut transport_request, &mut transport_response) {
+                Ok(_) => {
+                    // write the response body
+                    make_response(&transport_response.buf, res);
+                    return
+                },
                 Err(e) => match e {
-                    ServeRequestError::UnrecognizedMethod => {
+                    ServeRequestError::UnrecognizedMethod(method_err) => {
                         // continue for now, we may have over services that can handle this method
+                        method_error = method_err;
                     },
                     ServeRequestError::NoMethodProvided(err_string) => {
                         make_bad_request_error(&format!("rutile-rpc: {}", err_string), res);
@@ -165,8 +196,15 @@ impl Handler for HttpHandler {
 
         // if we arrive here, the method was not found
         // just write an error
-        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", "yolo", ct), res)
+        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", method_error, ct), res)
     }
+}
+
+fn make_response<'a>(body: &[u8], mut res: Response<'a, Fresh>) {
+    res.headers_mut().set(ContentLength(body.len() as u64));
+    *res.status_mut() = ::hyper::status::StatusCode::Ok;
+    let mut res = res.start().unwrap();
+    let _ = res.write_all(body);
 }
 
 fn make_base_headers<'a,>(res: &mut Response<'a, Fresh>) {

@@ -6,9 +6,11 @@
 // except according to those terms.
 
 use hyper::header::ContentType;
+use std::io::Write;
 
 use context::Context;
 use service::ServeRequestError;
+use transport::TransportResponse;
 
 pub mod json_codec;
 
@@ -30,15 +32,15 @@ pub trait Codec<T>: Clone + Default + CodecBase {
     fn from_string(&self, &str) -> Result<T, String>;
     fn to_string(&self, &T) -> Result<String, String>;
     fn decode_message(&self, &String) -> Result<Box<Self::M>, String>;
+    fn encode_message(&self, message: &T, method: &str, id: i64) -> Result<String, String>;
 }
 
-pub trait CodecBase {
-    fn empty() -> Self;
+pub trait CodecBase: Default {
     fn method(&self, s: &str) -> Result<String, String>;
     fn content_type(&self) -> ContentType;
 }
 
-pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F)
+pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F, res: &mut TransportResponse)
     -> Result<(), ServeRequestError>
     where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Result<Response, Error>,
     C: Codec<Request> + Codec<Response> + Codec<Error> {
@@ -48,9 +50,25 @@ pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &
         Err(e) => return Err(ServeRequestError::InvalidBody(e))
     };
     info!("dispatching message to method {}", message.get_method());
-    let _ = match f(ctx,  message.get_body().clone()) {
-        Ok(res) => codec.to_string(&res),
-        Err(err) => codec.to_string(&err),
-    }.expect("unable to convert response");
-    return Ok(())
+    let response_string = match f(ctx,  message.get_body().clone()) {
+        Ok(res) => {
+            match <C as Codec<Response>>::encode_message(codec, &res, message.get_method(), message.get_id()) {
+                Ok(m) => Ok(m),
+                Err(e) => Err(e)
+            }
+        },
+        Err(err) => {
+            match <C as Codec<Error>>::encode_message(codec, &err, message.get_method(), message.get_id()) {
+                Ok(m) => Ok(m),
+                Err(e) => Err(e)
+            }
+        },
+    };
+    match response_string {
+        Ok(s) => {
+            let _ = res.write_all(s.as_bytes());
+            return Ok(());
+        },
+        Err(e) => Err(ServeRequestError::Custom(e))
+    }
 }
