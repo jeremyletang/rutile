@@ -15,14 +15,27 @@ pub struct Person {
     pub age: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TestEnum {
+    First(String, f32),
+    Second(Vec<String>, String),
+}
+
+impl Default for TestEnum {
+    fn default() -> TestEnum {
+        return TestEnum::First("".to_string(), 42f32);
+    }
+}
+
+#[rpc_methods]
 impl HelloService {
     pub fn hello(&self, _: &Context, req: String) -> Result<i32, f32> {
         println!("from world: {}", req);
         Ok(42)
     }
 
-    pub fn create_person(&self, _: &Context, req: Person) -> Result<bool, bool> {
+    pub fn create_person(&self, _: &Context, req: Person) -> Result<TestEnum, bool> {
         println!("from create_person: {:?}", req);
-        Ok(true)
+        Ok(TestEnum::First("thug life".to_string(), 32f32))
     }
 }

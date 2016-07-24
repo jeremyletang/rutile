@@ -246,13 +246,31 @@ fn make_endpoints_impl_item(cx: &mut ExtCtxt,
     // items.push(quote_item!(cx, pub const SERVICE_NAME: &'static str = $service_name_expr;).unwrap());
 }
 
+fn has_rpc_methods_attribute(attrs: &Vec<Attribute>) -> bool {
+    for a in attrs {
+        match &a.node.value.node {
+            &MetaItemKind::Word(ref is) => {
+                // only check this as for now rpc_methods attribute can only be a word
+                if *is == "rpc_methods" {
+                    return true;
+                }
+            },
+            _ => {}
+        }
+    }
+
+    return false;
+}
+
 fn find_mod_impl(m: &Mod) -> (Vec<ItemKind>, Vec<P<Item>>) {
     let mut items = vec![];
     let mut impls = vec![];
     for i in &m.items {
         match i.node {
             ItemKind::Impl(_, _, _, _, _, _) => {
-                impls.push(i.node.clone());
+                if has_rpc_methods_attribute(&i.attrs) {
+                    impls.push(i.node.clone());
+                }
                 items.push(i.clone());
             },
             _ => items.push(i.clone())
@@ -325,7 +343,19 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
     }
 }
 
+// this is only used to prevent warning while using the rpc_methods attribute
+fn expand_rpc_methods(_: &mut ExtCtxt,
+                      _: Span,
+                      _: &MetaItem,
+                      annotatable: Annotatable)
+                      -> Vec<Annotatable> {
+    vec![annotatable]
+}
+
 pub fn register(reg: &mut rustc_plugin::Registry) {
     reg.register_syntax_extension(syntax::parse::token::intern("rpc_service"),
                                   MultiModifier(Box::new(expand_rpc_service)));
+    // to prevent warning for unused attributes
+    reg.register_syntax_extension(syntax::parse::token::intern("rpc_methods"),
+                                  MultiModifier(Box::new(expand_rpc_methods)));
 }
