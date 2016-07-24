@@ -34,6 +34,20 @@ use syntax::ptr::P;
 
 mod codec;
 
+fn camel_to_snake(mut camel: String) -> String {
+    let mut snake = String::new();
+    if camel.len() > 0 {
+        snake.push(camel.remove(0).to_lowercase().next().unwrap())
+    }
+    for c in camel.chars() {
+        if c.is_uppercase() {
+            snake.push('_');
+        }
+        snake.push(c.to_lowercase().next().unwrap())
+    }
+    return snake;
+}
+
 fn methods_raw_to_ident(service_name: &str,
                         methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
                         -> Vec<Ident> {
@@ -53,7 +67,7 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
     let mut ty_name = match ty_kind {
         &TyKind::Path(_, ref p) => {
             p.segments.iter().fold("".to_string(), |acc, seg| {
-                acc + &syntax::print::pprust::ident_to_string(seg.identifier) + "."
+                acc + &camel_to_snake(syntax::print::pprust::ident_to_string(seg.identifier)) + "."
             })
         }
         _ => unreachable!(),
