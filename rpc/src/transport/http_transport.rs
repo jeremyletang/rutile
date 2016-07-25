@@ -5,14 +5,18 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use hyper::header::{Headers, ContentType, ContentLength, Allow};
+use hyper::client::Client as HyperClient;
+use hyper::header::{ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
-use std::any::Any;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
+use codec::{CodecBase, Codec, Message};
+use client::{Client, RpcError};
 use context::Context;
 use service::{Service, ServeRequestError};
 use transport::{Transport, ListeningTransport,
@@ -44,7 +48,7 @@ impl HttpTransport {
                     services: vec![],
                 })
             },
-            Err(e) => {
+            Err(_) => {
                 Err(())
             }
         }
@@ -53,7 +57,7 @@ impl HttpTransport {
 
 impl ListeningTransport for ListeningHttpTransport {
     fn close(&mut self) -> Result<(), ()> {
-        self.listening.close();
+        let _ = self.listening.close();
         return Ok(())
     }
 }
@@ -133,7 +137,7 @@ impl HttpHandler {
 }
 
 impl Handler for HttpHandler {
-    fn handle<'a, 'k>(&'a self, mut req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
+    fn handle<'a, 'k>(&'a self, req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
         // add base headers
         make_base_headers(&mut res);
         // first check method
@@ -224,4 +228,69 @@ fn make_method_not_allowed_error<'a,>(mut res: Response<'a, Fresh>, method: Meth
     *res.status_mut() = ::hyper::status::StatusCode::MethodNotAllowed;
     let mut res = res.start().unwrap();
     res.write_all(body.as_bytes()).unwrap();
+}
+
+#[derive(Clone)]
+pub struct HttpClient {
+    client: Arc<HyperClient>,
+    url: String,
+    current_id: Arc<AtomicU64>
+}
+
+impl Default for HttpClient {
+    fn default() -> HttpClient {
+        HttpClient {
+            client: Arc::new(HyperClient::new()),
+            url: "127.0.0.1:8000".to_string(),
+            current_id: Arc::new(AtomicU64::new(1)),
+        }
+    }
+}
+
+impl Client for HttpClient {
+    fn new(url: String) -> HttpClient {
+        use std::time::Duration;
+        let mut client = HyperClient::new();
+        client.set_read_timeout(Some(Duration::new(2, 0)));
+        client.set_write_timeout(Some(Duration::new(2,0)));
+        HttpClient {
+            client: Arc::new(client),
+            url: url.clone(),
+            current_id: Arc::new(AtomicU64::new(1)),
+        }
+    }
+
+    fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
+        -> Result<Response, String>
+        where C: CodecBase + Codec<Request> + Codec<Response>,
+        Request: Default, Response: Default + Clone {
+        let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
+
+        let codec = C::default();
+        let message = match <C as Codec<Request>>::encode_message(&codec, req, endpoint, id) {
+            Ok(m) => m,
+            Err(_) => unreachable!()
+        };
+        let cc = self.client.clone();
+        let mut res = cc.post(&self.url)
+            .header(codec.content_type())
+            .body(&message)
+            .send();
+
+        match res {
+            Ok(ref mut ok_res) => {
+                let mut s = String::new();
+                let _ = ok_res.read_to_string(&mut s);
+                info!("response: {}", s);
+                let concrete: &Response = match <C as Codec<Response>>::decode_message(&codec, &s) {
+                    Ok(concrete) => unsafe {::std::mem::transmute(concrete.get_body())},
+                    Err(e) => return Err(e)
+                };
+                return Ok((*concrete).clone());
+            },
+            Err(e) => {
+                return Err(format!("{}", e));
+            },
+        }
+    }
 }

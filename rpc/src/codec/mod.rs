@@ -6,7 +6,6 @@
 // except according to those terms.
 
 use hyper::header::ContentType;
-use std::io::Write;
 
 use context::Context;
 use service::ServeRequestError;
@@ -14,14 +13,14 @@ use transport::TransportResponse;
 
 pub mod json_codec;
 
-pub trait Message: Clone + Default + Sized {
+pub trait Message: Clone + Sized {
     type I: Clone;
     fn get_method(&self) -> &str;
     fn get_body(&self) -> &Self::I;
-    fn get_id(&self) -> i64;
+    fn get_id(&self) -> u64;
     fn set_method(&mut self, method: &str);
     fn set_body(&mut self, body: &Self::I);
-    fn set_id(&mut self, id: i64);
+    fn set_id(&mut self, id: u64);
 }
 
 pub trait Codec<T>: Clone + Default + CodecBase {
@@ -32,7 +31,7 @@ pub trait Codec<T>: Clone + Default + CodecBase {
     fn from_string(&self, &str) -> Result<T, String>;
     fn to_string(&self, &T) -> Result<String, String>;
     fn decode_message(&self, &String) -> Result<Box<Self::M>, String>;
-    fn encode_message(&self, message: &T, method: &str, id: i64) -> Result<String, String>;
+    fn encode_message(&self, message: &T, method: &str, id: u64) -> Result<String, String>;
 }
 
 pub trait CodecBase: Default {
@@ -40,30 +39,23 @@ pub trait CodecBase: Default {
     fn content_type(&self) -> ContentType;
 }
 
-pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F, res: &mut TransportResponse)
+pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F, res: &mut TransportResponse)
     -> Result<(), ServeRequestError>
-    where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Result<Response, Error>,
-    C: Codec<Request> + Codec<Response> + Codec<Error> {
+    where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
+    C: Codec<Request> + Codec<Response>  {
 
+    info!("message received: {}", body);
     let message = match <C as Codec<Request>>::decode_message(codec, body) {
         Ok(m) => m,
         Err(e) => return Err(ServeRequestError::InvalidBody(e))
     };
     info!("dispatching message to method {}", message.get_method());
-    let response_string = match f(ctx,  message.get_body().clone()) {
-        Ok(res) => {
-            match <C as Codec<Response>>::encode_message(codec, &res, message.get_method(), message.get_id()) {
-                Ok(m) => Ok(m),
-                Err(e) => Err(e)
-            }
-        },
-        Err(err) => {
-            match <C as Codec<Error>>::encode_message(codec, &err, message.get_method(), message.get_id()) {
-                Ok(m) => Ok(m),
-                Err(e) => Err(e)
-            }
-        },
+    let res_raw = f(ctx, message.get_body().clone());
+    let response_string = match <C as Codec<Response>>::encode_message(codec, &res_raw, message.get_method(), message.get_id()) {
+        Ok(m) => Ok(m),
+        Err(e) => Err(e)
     };
+
     match response_string {
         Ok(s) => {
             let _ = res.write_all(s.as_bytes());

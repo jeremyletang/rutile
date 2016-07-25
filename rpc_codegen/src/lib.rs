@@ -23,6 +23,7 @@ use aster::expr::ExprBuilder;
 use aster::lit::LitBuilder;
 use aster::path::IntoPath;
 use aster::str::ToInternedString;
+use aster::ty::TyBuilder;
 use aster::ty::TyPathBuilder;
 use quasi::ToTokens;
 use syntax::ast::*;
@@ -33,6 +34,23 @@ use syntax::parse::token::InternedString;
 use syntax::ptr::P;
 
 mod codec;
+
+#[derive(Clone)]
+pub struct MethodData {
+    id: Ident,
+    params: Vec<P<Ty>>,
+    ret: P<Ty>,
+}
+
+impl MethodData {
+    pub fn new(id: Ident, params: Vec<P<Ty>>, ret: P<Ty>) -> MethodData {
+        MethodData {
+            id: id,
+            params: params,
+            ret: ret,
+        }
+    }
+}
 
 fn camel_to_snake(mut camel: String) -> String {
     let mut snake = String::new();
@@ -49,11 +67,11 @@ fn camel_to_snake(mut camel: String) -> String {
 }
 
 fn methods_raw_to_ident(service_name: &str,
-                        methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                        methods_raw: &Vec<MethodData>)
                         -> Vec<Ident> {
     methods_raw.iter()
-        .map(|&(i, _, _)| {
-            let s = service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i);
+        .map(|ref md| {
+            let s = service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(md.id);
             let s = s.replace(".", "_").to_uppercase();
             s.to_ident()
         }).collect()
@@ -76,46 +94,43 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
     crate_name + &mod_path + &ty_name
 }
 
+fn make_client_struct_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String {
+    let ty_name = match ty_kind {
+        &TyKind::Path(_, ref p) => {
+            syntax::print::pprust::ident_to_string(p.segments.iter().last().unwrap().identifier)
+        }
+        _ => unreachable!(),
+    };
+    ty_name + "Client"
+}
+
 fn extract_method_args(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
     sig.decl.inputs.iter().map(|a| a.ty.clone()).collect()
 }
 
-fn extract_method_return_type_parameters(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
+fn extract_method_return_type(cx: &mut ExtCtxt, sig: &syntax::ast::MethodSig) -> P<Ty> {
     match &sig.decl.output {
         &FunctionRetTy::Ty(ref ty) => {
-            match (*ty).node {
-                TyKind::Path(_, ref p) => {
-                        let seg_len = p.segments.len();
-                        match p.segments[seg_len-1].parameters {
-                            PathParameters::AngleBracketed(ref pp) => {
-                                pp.types.to_vec()
-                            },
-                            _ => vec![]
-                        }
-                },
-                _ => {
-                    vec![]
-                }
-            }
+            ty.clone()
         }
-        _ => {
-            vec![]
+        &FunctionRetTy::Default(span) => {
+            cx.span_fatal(span, "rpc method cannot return default")
         },
+        &FunctionRetTy::None(span) => {
+            cx.span_fatal(span, "rpc method cannot have no return for now")
+        }
     }
 }
 
 fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
-    -> Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)> {
+    -> Vec<MethodData> {
     let mut methods = vec![];
     for i in items {
         match i.node {
             ImplItemKind::Method(ref sig, _) => {
                 let args = extract_method_args(sig);
-                let ret_ty_params = extract_method_return_type_parameters(sig);
-                if ret_ty_params.len() == 0 {
-                    cx.span_err(i.span, "service methods must return Result<_, _>");
-                }
-                methods.push((i.ident, args, ret_ty_params));
+                let ret = extract_method_return_type(cx, sig);
+                methods.push(MethodData::new(i.ident, args, ret));
             }
             _ => {
                 // nothing to do with non methods kinds
@@ -127,18 +142,18 @@ fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
 }
 
 fn methods_raw_to_str_literals_list(service_name: &str,
-                                    methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                                    methods_raw: &Vec<MethodData>)
                                     -> Vec<Lit> {
     methods_raw.iter()
-        .map(|&(i, _, _)| {
-            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
+        .map(|ref md| {
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             (*LitBuilder::new().str(&*en)).clone()
         }).collect()
 }
 
 fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
                                service_name: &str,
-                               methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                               methods_raw: &Vec<MethodData>)
                                -> P<Expr> {
 
     let endpoint_names = methods_raw_to_str_literals_list(service_name, methods_raw).into_iter();
@@ -163,19 +178,87 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
 
 fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
                                 service_name: &str,
-                                methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                                methods_raw: &Vec<MethodData>)
                                 -> Vec<P<Block>> {
     methods_raw.iter()
-        .map(|&(i, ref args, ref retty)| {
-            let ref req = args[2];
-            let ref ret_ok = retty[0];
-            let ref ret_err = retty[1];
-            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
+        .map(|ref md| {
+            let ref req = md.params[2];
+            let ref ret = md.ret;
+            let ref fn_identifier = md.id;
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             quote_block!(cx, {
-                let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
+                let f = |ctx: &::rpc::Context, r: $req| -> $ret {self.$fn_identifier(ctx, r)};
+                ::rpc::__decode_and_call::<$req, $ret, _, ::rpc::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
             }).unwrap()
         }).collect()
+}
+
+fn make_client(cx: &mut ExtCtxt,
+              ty: &P<Ty>,
+              generics: &Generics,
+              methods: &Vec<ImplItem>,
+              codec_paths: &Vec<Path>)
+              -> Vec<P<Item>> {
+
+    let service_name = make_service_name(cx, &(*ty).node);
+
+    let client_struct_name = make_client_struct_name(cx, &(*ty).node);
+    let client_struct_name_expr = client_struct_name.to_ident();
+
+    let methods_raw = make_service_methods_list(cx, &methods);
+    let methods_idents = methods_raw.iter().map(|ref md| md.id).into_iter();
+    let methods_param = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
+
+    // this is sub optimal
+    let methods_param_bis = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_bis = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
+
+    // this will never end
+    let methods_param_ter = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_ter = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
+
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
+
+    vec![
+        quote_item!(cx,
+            pub struct $client_struct_name_expr<T: ::rpc::Client = ::rpc::http_transport::HttpClient> {
+                timeout_: ::std::time::Duration,
+                client: T,
+            }
+        ).unwrap(),
+        quote_item!(cx,
+            impl<T> $client_struct_name_expr<T> where T: ::rpc::Client {
+                pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
+                    $client_struct_name_expr {
+                        timeout_: ::std::time::Duration::new(5, 0),
+                        client: T::new(url.into()),
+                    }
+                }
+                pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
+                    $client_struct_name_expr {
+                        timeout_: d,
+                        client: T::new(url.into()),
+                    }
+                }
+                pub fn get_timeout(&self) -> ::std::time::Duration {
+                    self.timeout_
+                }
+                pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
+                    self.timeout_ = new_d;
+                    return self;
+                }
+
+                $(pub fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
+                    -> Result<$methods_ret, String>
+                    where C: ::rpc::Codec<$methods_param_bis>
+                        + ::rpc::Codec<$methods_ret_bis>
+                        + Default {
+                    self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
+                })*
+            }
+        ).unwrap()
+    ]
 }
 
 fn make_service_trait_impl_item(cx: &mut ExtCtxt,
@@ -198,7 +281,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let where_clauses = generics.where_clause.clone();
 
     quote_item!(cx,
-        impl$generics ::rpc::service::Service for $ty $where_clauses {
+        impl$generics ::rpc::Service for $ty $where_clauses {
             default fn __rpc_service_name(&self) ->  &'static str{
                 return $service_name_expr;
             }
@@ -206,24 +289,24 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 $list_endpoints_fn_expr
             }
             default fn __rpc_list_supported_codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
-                use ::rpc::codec::CodecBase;
+                use ::rpc::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context,
-                                                  req: &mut ::rpc::transport::TransportRequest,
-                                                  res: &mut ::rpc::transport::TransportResponse)
-                                                  -> Result<(), ::rpc::service::ServeRequestError> {
-                use ::rpc::codec::{Codec, CodecBase};
+            default fn __rpc_serve_request(&self, ctx: ::rpc::Context,
+                                                  req: &mut ::rpc::TransportRequest,
+                                                  res: &mut ::rpc::TransportResponse)
+                                                  -> Result<(), ::rpc::ServeRequestError> {
+                use ::rpc::{Codec, CodecBase};
                 let mut body = String::new();
                 let _ = req.read_to_string(&mut body);
-                let codec = ::rpc::codec::json_codec::JsonCodec::default();
+                let codec = ::rpc::json_codec::JsonCodec::default();
                 let method = match codec.method(&body) {
                     Ok(s) => s,
-                    Err(e) => return Err(::rpc::service::ServeRequestError::NoMethodProvided(e))
+                    Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
                 };
                 match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
-                    _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod(method))
+                    _ => return Err(::rpc::ServeRequestError::UnrecognizedMethod(method))
                 }
             }
         }
@@ -246,13 +329,31 @@ fn make_endpoints_impl_item(cx: &mut ExtCtxt,
     // items.push(quote_item!(cx, pub const SERVICE_NAME: &'static str = $service_name_expr;).unwrap());
 }
 
+fn has_rpc_methods_attribute(attrs: &Vec<Attribute>) -> bool {
+    for a in attrs {
+        match &a.node.value.node {
+            &MetaItemKind::Word(ref is) => {
+                // only check this as for now rpc_methods attribute can only be a word
+                if *is == "rpc_methods" {
+                    return true;
+                }
+            },
+            _ => {}
+        }
+    }
+
+    return false;
+}
+
 fn find_mod_impl(m: &Mod) -> (Vec<ItemKind>, Vec<P<Item>>) {
     let mut items = vec![];
     let mut impls = vec![];
     for i in &m.items {
         match i.node {
             ItemKind::Impl(_, _, _, _, _, _) => {
-                impls.push(i.node.clone());
+                if has_rpc_methods_attribute(&i.attrs) {
+                    impls.push(i.node.clone());
+                }
                 items.push(i.clone());
             },
             _ => items.push(i.clone())
@@ -261,17 +362,17 @@ fn find_mod_impl(m: &Mod) -> (Vec<ItemKind>, Vec<P<Item>>) {
     (impls, items)
 }
 
-fn generate_trait_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>, codec_paths: &Vec<Path>) -> Vec<P<Item>> {
+fn generate_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>, codec_paths: &Vec<Path>) -> Vec<P<Item>> {
     let mut items = vec![];
     for imp in impls {
         items.append(
             &mut match imp {
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
                     let impl_item = make_service_trait_impl_item(cx, ty, generics, methods, codec_paths);
+                    let mut client_item = make_client(cx, ty, generics, methods, codec_paths);
                     let mut impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
-                    // println!("{}", syntax::print::pprust::item_to_string(&*impl_item.clone().unwrap()));
-                    // println!("{}", syntax::print::pprust::item_to_string(&*impl_endpoints.clone().unwrap()));
                     impl_endpoints.push(impl_item.unwrap());
+                    impl_endpoints.append(&mut client_item);
                     impl_endpoints
                 },
                 _ => vec![]
@@ -293,17 +394,22 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
         Annotatable::Item(ref i) => {
             match &(*i).node {
                 &ItemKind::Mod(ref m) => {
+                    // generate then recreate items list
                     let (impls, mut base_items) = find_mod_impl(&m);
                     if impls.len() == 0 {
                         cx.span_fatal(span, "cannot found struct or enum impls");
                     }
                     items.append(&mut base_items);
                     let mut _mod = m.clone();
-                    items.append(&mut generate_trait_rpc_service(cx, &impls, &codec_paths));
+                    items.append(&mut generate_rpc_service(cx, &impls, &codec_paths));
                     _mod.items = items;
+
+                    // add unused_imports attribute to the attributes list (shadow warnings)
+                    let mut attrs = i.attrs.clone();
+                    attrs.push(quote_attr!(cx, #![allow(unused_imports)]));
                     let item = P(Item {
                         ident: i.ident.clone(),
-                        attrs: i.attrs.clone(),
+                        attrs: attrs,
                         id: DUMMY_NODE_ID,
                         node: ItemKind::Mod(_mod),
                         vis: Visibility::Public,
@@ -325,7 +431,19 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
     }
 }
 
+// this is only used to prevent warning while using the rpc_methods attribute
+fn expand_rpc_methods(_: &mut ExtCtxt,
+                      _: Span,
+                      _: &MetaItem,
+                      annotatable: Annotatable)
+                      -> Vec<Annotatable> {
+    vec![annotatable]
+}
+
 pub fn register(reg: &mut rustc_plugin::Registry) {
     reg.register_syntax_extension(syntax::parse::token::intern("rpc_service"),
                                   MultiModifier(Box::new(expand_rpc_service)));
+    // to prevent warning for unused attributes
+    reg.register_syntax_extension(syntax::parse::token::intern("rpc_methods"),
+                                  MultiModifier(Box::new(expand_rpc_methods)));
 }

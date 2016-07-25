@@ -1,7 +1,3 @@
-#![feature(custom_derive, plugin, specialization)]
-#![plugin(rpc_macros, serde_macros)]
-#![allow(unused_imports, unused_variables, dead_code)]
-
 extern crate rpc;
 extern crate serde_json;
 #[macro_use]
@@ -9,8 +5,7 @@ extern crate log;
 extern crate env_logger;
 extern crate hello_service;
 
-use std::net::SocketAddr;
-use rpc::server::Server;
+use rpc::Server;
 use hello_service::HelloService;
 
 fn main() {
