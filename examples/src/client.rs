@@ -11,7 +11,13 @@ extern crate hello_service;
 
 use std::net::SocketAddr;
 
+use rpc::context::Context;
+use rpc::codec::json_codec::JsonCodec;
+
 fn main() {
     let _ = env_logger::init();
     info!("calling server at address: 127.0.0.1:9999");
+    let c = hello_service::HelloServiceClient::new();
+    let res = c.create_person::<JsonCodec>(Context::new(),
+                                           hello_service::Person{name: "thug".to_string(), age: 42});
 }

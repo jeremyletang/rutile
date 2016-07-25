@@ -219,35 +219,51 @@ fn make_client(cx: &mut ExtCtxt,
 
     let methods_raw = make_service_methods_list(cx, &methods);
     let methods_idents = methods_raw.iter().map(|ref md| md.id).into_iter();
+    let methods_param = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret1 = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
+    let methods_ret2 = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
+
+    // this is sub optimal
+    let methods_param_bis = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret1_bis = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
+    let methods_ret2_bis = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
+
 
     vec![
-    quote_item!(cx,
-        pub struct $client_struct_name_expr {
-            timeout: ::std::time::Duration
-        }
-    ).unwrap(),
-    quote_item!(cx,
-        impl $client_struct_name_expr {
-            pub fn new() -> $client_struct_name_expr {
-                $client_struct_name_expr {
-                    timeout: ::std::time::Duration::new(5, 0),
+        quote_item!(cx,
+            pub struct $client_struct_name_expr {
+                timeout: ::std::time::Duration
+            }
+        ).unwrap(),
+        quote_item!(cx,
+            impl $client_struct_name_expr {
+                pub fn new() -> $client_struct_name_expr {
+                    $client_struct_name_expr {
+                        timeout: ::std::time::Duration::new(5, 0),
+                    }
                 }
-            }
-            pub fn with_timeout(d: ::std::time::Duration) -> $client_struct_name_expr {
-                $client_struct_name_expr {
-                    timeout: d,
+                pub fn with_timeout(d: ::std::time::Duration) -> $client_struct_name_expr {
+                    $client_struct_name_expr {
+                        timeout: d,
+                    }
                 }
-            }
-            pub fn get_timeout(&self) -> ::std::time::Duration {
-                self.timeout
-            }
-            pub fn set_timeout(&mut self, new_d: ::std::time::Duration) {
-                self.timeout = new_d
-            }
+                pub fn get_timeout(&self) -> ::std::time::Duration {
+                    self.timeout
+                }
+                pub fn set_timeout(&mut self, new_d: ::std::time::Duration) {
+                    self.timeout = new_d
+                }
 
-            $(pub fn $methods_idents(&self) {})*
-        }
-    ).unwrap()
+                $(pub fn $methods_idents<C>(&self, _: ::rpc::context::Context, _: $methods_param)
+                    -> Result<$methods_ret1, $methods_ret2>
+                    where C: ::rpc::codec::Codec<$methods_param_bis>
+                        + ::rpc::codec::Codec<$methods_ret1_bis>
+                        + ::rpc::codec::Codec<$methods_ret2_bis>
+                        + Default {
+                    return Ok(Default::default());
+                })*
+            }
+        ).unwrap()
     ]
 }
 
