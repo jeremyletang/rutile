@@ -263,7 +263,7 @@ impl Client for HttpClient {
     fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
-        Request: Default, Response: Default + Clone {
+        Request: Clone, Response: Clone {
         let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
 
         let codec = C::default();

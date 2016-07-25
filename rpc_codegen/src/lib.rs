@@ -114,7 +114,7 @@ fn extract_method_return_type(cx: &mut ExtCtxt, sig: &syntax::ast::MethodSig) ->
             ty.clone()
         }
         &FunctionRetTy::Default(span) => {
-            cx.span_fatal(span, "rpc method cannot return default")
+            cx.span_fatal(span, "rpc method cannot have no return for now")
         },
         &FunctionRetTy::None(span) => {
             cx.span_fatal(span, "rpc method cannot have no return for now")
@@ -253,7 +253,7 @@ fn make_client(cx: &mut ExtCtxt,
                     -> Result<$methods_ret, String>
                     where C: ::rpc::Codec<$methods_param_bis>
                         + ::rpc::Codec<$methods_ret_bis>
-                        + Default {
+                        {
                     self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
                 })*
             }

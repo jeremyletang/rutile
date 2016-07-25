@@ -23,7 +23,7 @@ pub trait Message: Clone + Sized {
     fn set_id(&mut self, id: u64);
 }
 
-pub trait Codec<T>: Clone + Default + CodecBase {
+pub trait Codec<T>: Clone + CodecBase {
     type M: Message + Clone;
     fn extract_method_from_raw(&self, s: &String) -> Result<String, String> {
         return self.method(s);

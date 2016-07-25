@@ -19,5 +19,5 @@ pub trait Client : Default {
     fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
-        Request: Default, Response: Default + Clone;
+        Request: Clone, Response: Clone;
 }

@@ -23,19 +23,19 @@ pub struct JsonCodec {
 
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
-pub struct JsonMessage<T> where T: Default + Clone + Serialize + Deserialize {
+pub struct JsonMessage<T> where T: Clone + Serialize + Deserialize {
     method: String,
-    body: T,
+    body: Option<T>,
     id: u64,
 }
 
-impl<T> Message for JsonMessage<T> where T: Default + Clone + Serialize + Deserialize{
+impl<T> Message for JsonMessage<T> where T: Clone + Serialize + Deserialize{
     type I = T;
     fn get_method(&self) -> &str { &self.method }
-    fn get_body(&self) -> &Self::I { &self.body }
+    fn get_body(&self) -> &Self::I { &self.body.as_ref().unwrap() }
     fn get_id(&self) -> u64 { self.id }
     fn set_method(&mut self, method: &str) { self.method = method.to_string(); }
-    fn set_body(&mut self, body: &Self::I) { self.body = body.clone(); }
+    fn set_body(&mut self, body: &Self::I) { self.body = Some(body.clone()); }
     fn set_id(&mut self, id: u64) { self.id = id; }
 }
 
@@ -70,7 +70,7 @@ impl CodecBase for JsonCodec {
 }
 
 impl<T> Codec<T> for JsonCodec
-    where T: Serialize + Deserialize + Clone + Default {
+    where T: Serialize + Deserialize + Clone {
     type M = JsonMessage<T>;
 
     fn from_string(&self, s: &str) -> Result<T, String> {
@@ -97,7 +97,7 @@ impl<T> Codec<T> for JsonCodec
     fn encode_message(&self, body: &T, method: &str, id: u64) -> Result<String, String> {
         let json_message = JsonMessage{
             method: method.to_string(),
-            body: body.clone(),
+            body: Some(body.clone()),
             id: id,
         };
         match serde_json::to_string(&json_message) {

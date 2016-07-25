@@ -29,13 +29,13 @@ impl Default for TestEnum {
 
 #[rpc_methods]
 impl HelloService {
-    pub fn hello(&self, _: &::rpc::Context , req: String) -> String {
+    pub fn hello(&self, _: &::rpc::Context , req: String) -> Result<String, bool> {
         println!("from world: {}", req);
-        "hello".to_string()
+        Ok("hello".to_string())
     }
 
-    pub fn create_person(&self, _: &Context, req: Person) -> TestEnum {
+    pub fn create_person(&self, _: &Context, req: Person) -> Result<TestEnum, bool> {
         println!("from create_person: {:?}", req);
-        TestEnum::First("thug life".to_string(), 32f32)
+        Ok(TestEnum::First("thug life".to_string(), 32f32))
     }
 }
