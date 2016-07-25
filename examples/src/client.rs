@@ -20,16 +20,12 @@ fn main() {
     let _ = env_logger::init();
     info!("calling server at address: 127.0.0.1:9999");
     let c = Arc::new(Client::new("http://127.0.0.1:9999/"));
-    let mut i = 0;
 
-    while i != 10 {
+    (0..100).map(|_| {
         let cc = c.clone();
         thread::spawn(move || {
             let _ = cc.create_person::<JsonCodec>(&Context::new(),
                                                   &Person{name: "thug".to_string(), age: 42});
-
-        });
-        i += 1;
-    }
-    thread::sleep(::std::time::Duration::new(1, 0));
+        })
+    }).collect::<Vec<_>>().into_iter().map(|j| j.join()).collect::<Vec<_>>();
 }
