@@ -35,6 +35,23 @@ use syntax::ptr::P;
 
 mod codec;
 
+#[derive(Clone)]
+pub struct MethodData {
+    id: Ident,
+    params: Vec<P<Ty>>,
+    ret: Vec<P<Ty>>,
+}
+
+impl MethodData {
+    pub fn new(id: Ident, params: Vec<P<Ty>>, ret: Vec<P<Ty>>) -> MethodData {
+        MethodData {
+            id: id,
+            params: params,
+            ret: ret,
+        }
+    }
+}
+
 fn camel_to_snake(mut camel: String) -> String {
     let mut snake = String::new();
     if camel.len() > 0 {
@@ -50,11 +67,11 @@ fn camel_to_snake(mut camel: String) -> String {
 }
 
 fn methods_raw_to_ident(service_name: &str,
-                        methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                        methods_raw: &Vec<MethodData>)
                         -> Vec<Ident> {
     methods_raw.iter()
-        .map(|&(i, _, _)| {
-            let s = service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(i);
+        .map(|ref md| {
+            let s = service_name.to_string() + "_" + &syntax::print::pprust::ident_to_string(md.id);
             let s = s.replace(".", "_").to_uppercase();
             s.to_ident()
         }).collect()
@@ -116,7 +133,7 @@ fn extract_method_return_type_parameters(sig: &syntax::ast::MethodSig) -> Vec<P<
 }
 
 fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
-    -> Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)> {
+    -> Vec<MethodData> {
     let mut methods = vec![];
     for i in items {
         match i.node {
@@ -126,7 +143,7 @@ fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
                 if ret_ty_params.len() == 0 {
                     cx.span_err(i.span, "service methods must return Result<_, _>");
                 }
-                methods.push((i.ident, args, ret_ty_params));
+                methods.push(MethodData::new(i.ident, args, ret_ty_params));
             }
             _ => {
                 // nothing to do with non methods kinds
@@ -138,18 +155,18 @@ fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
 }
 
 fn methods_raw_to_str_literals_list(service_name: &str,
-                                    methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                                    methods_raw: &Vec<MethodData>)
                                     -> Vec<Lit> {
     methods_raw.iter()
-        .map(|&(i, _, _)| {
-            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
+        .map(|ref md| {
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             (*LitBuilder::new().str(&*en)).clone()
         }).collect()
 }
 
 fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
                                service_name: &str,
-                               methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                               methods_raw: &Vec<MethodData>)
                                -> P<Expr> {
 
     let endpoint_names = methods_raw_to_str_literals_list(service_name, methods_raw).into_iter();
@@ -174,16 +191,17 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
 
 fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
                                 service_name: &str,
-                                methods_raw: &Vec<(Ident, Vec<P<Ty>>, Vec<P<Ty>>)>)
+                                methods_raw: &Vec<MethodData>)
                                 -> Vec<P<Block>> {
     methods_raw.iter()
-        .map(|&(i, ref args, ref retty)| {
-            let ref req = args[2];
-            let ref ret_ok = retty[0];
-            let ref ret_err = retty[1];
-            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(i);
+        .map(|ref md| {
+            let ref req = md.params[2];
+            let ref ret_ok = md.ret[0];
+            let ref ret_err = md.ret[1];
+            let ref fn_identifier = md.id;
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             quote_block!(cx, {
-                let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$i(ctx, r)};
+                let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$fn_identifier(ctx, r)};
                 ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
             }).unwrap()
         }).collect()
@@ -198,6 +216,9 @@ fn make_client(cx: &mut ExtCtxt,
 
     let client_struct_name = make_client_struct_name(cx, &(*ty).node);
     let client_struct_name_expr = client_struct_name.to_ident();
+
+    let methods_raw = make_service_methods_list(cx, &methods);
+    let methods_idents = methods_raw.iter().map(|ref md| md.id).into_iter();
 
     vec![
     quote_item!(cx,
@@ -217,6 +238,14 @@ fn make_client(cx: &mut ExtCtxt,
                     timeout: d,
                 }
             }
+            pub fn get_timeout(&self) -> ::std::time::Duration {
+                self.timeout
+            }
+            pub fn set_timeout(&mut self, new_d: ::std::time::Duration) {
+                self.timeout = new_d
+            }
+
+            $(pub fn $methods_idents(&self) {})*
         }
     ).unwrap()
     ]
@@ -355,6 +384,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
         Annotatable::Item(ref i) => {
             match &(*i).node {
                 &ItemKind::Mod(ref m) => {
+                    // generate then recreate items list
                     let (impls, mut base_items) = find_mod_impl(&m);
                     if impls.len() == 0 {
                         cx.span_fatal(span, "cannot found struct or enum impls");
@@ -363,9 +393,13 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                     let mut _mod = m.clone();
                     items.append(&mut generate_rpc_service(cx, &impls, &codec_paths));
                     _mod.items = items;
+
+                    // add unused_imports attribute to the attributes list (shadow warnings)
+                    let mut attrs = i.attrs.clone();
+                    attrs.push(quote_attr!(cx, #![allow(unused_imports)]));
                     let item = P(Item {
                         ident: i.ident.clone(),
-                        attrs: i.attrs.clone(),
+                        attrs: attrs,
                         id: DUMMY_NODE_ID,
                         node: ItemKind::Mod(_mod),
                         vis: Visibility::Public,

@@ -15,7 +15,7 @@ use syntax::codemap::Span;
 use syntax::ext::base::ExtCtxt;
 use syntax::ptr::P;
 
-fn split_string_to_path_segments(s: String) -> Vec<PathSegment> {
+pub fn split_string_to_path_segments(s: String) -> Vec<PathSegment> {
     s.split("::").map(|sub|
         PathSegment{
             identifier: sub.to_ident(),
