@@ -23,6 +23,7 @@ use aster::expr::ExprBuilder;
 use aster::lit::LitBuilder;
 use aster::path::IntoPath;
 use aster::str::ToInternedString;
+use aster::ty::TyBuilder;
 use aster::ty::TyPathBuilder;
 use quasi::ToTokens;
 use syntax::ast::*;
@@ -74,6 +75,16 @@ fn make_service_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String 
     };
     ty_name.pop();
     crate_name + &mod_path + &ty_name
+}
+
+fn make_client_struct_name(cx: &mut ExtCtxt, ty_kind: &syntax::ast::TyKind) -> String {
+    let ty_name = match ty_kind {
+        &TyKind::Path(_, ref p) => {
+            syntax::print::pprust::ident_to_string(p.segments.iter().last().unwrap().identifier)
+        }
+        _ => unreachable!(),
+    };
+    ty_name + "Client"
 }
 
 fn extract_method_args(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
@@ -178,6 +189,39 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
         }).collect()
 }
 
+fn make_client(cx: &mut ExtCtxt,
+              ty: &P<Ty>,
+              generics: &Generics,
+              methods: &Vec<ImplItem>,
+              codec_paths: &Vec<Path>)
+              -> Vec<P<Item>> {
+
+    let client_struct_name = make_client_struct_name(cx, &(*ty).node);
+    let client_struct_name_expr = client_struct_name.to_ident();
+
+    vec![
+    quote_item!(cx,
+        pub struct $client_struct_name_expr {
+            timeout: ::std::time::Duration
+        }
+    ).unwrap(),
+    quote_item!(cx,
+        impl $client_struct_name_expr {
+            pub fn new() -> $client_struct_name_expr {
+                $client_struct_name_expr {
+                    timeout: ::std::time::Duration::new(5, 0),
+                }
+            }
+            pub fn with_timeout(d: ::std::time::Duration) -> $client_struct_name_expr {
+                $client_struct_name_expr {
+                    timeout: d,
+                }
+            }
+        }
+    ).unwrap()
+    ]
+}
+
 fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                                 ty: &P<Ty>,
                                 generics: &Generics,
@@ -279,17 +323,17 @@ fn find_mod_impl(m: &Mod) -> (Vec<ItemKind>, Vec<P<Item>>) {
     (impls, items)
 }
 
-fn generate_trait_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>, codec_paths: &Vec<Path>) -> Vec<P<Item>> {
+fn generate_rpc_service(cx: &mut ExtCtxt, impls: &Vec<ItemKind>, codec_paths: &Vec<Path>) -> Vec<P<Item>> {
     let mut items = vec![];
     for imp in impls {
         items.append(
             &mut match imp {
                 &ItemKind::Impl(_, _, ref generics, _, ref ty, ref methods) => {
                     let impl_item = make_service_trait_impl_item(cx, ty, generics, methods, codec_paths);
+                    let mut client_item = make_client(cx, ty, generics, methods, codec_paths);
                     let mut impl_endpoints = make_endpoints_impl_item(cx, ty, generics, methods);
-                    // println!("{}", syntax::print::pprust::item_to_string(&*impl_item.clone().unwrap()));
-                    // println!("{}", syntax::print::pprust::item_to_string(&*impl_endpoints.clone().unwrap()));
                     impl_endpoints.push(impl_item.unwrap());
+                    impl_endpoints.append(&mut client_item);
                     impl_endpoints
                 },
                 _ => vec![]
@@ -317,7 +361,7 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
                     }
                     items.append(&mut base_items);
                     let mut _mod = m.clone();
-                    items.append(&mut generate_trait_rpc_service(cx, &impls, &codec_paths));
+                    items.append(&mut generate_rpc_service(cx, &impls, &codec_paths));
                     _mod.items = items;
                     let item = P(Item {
                         ident: i.ident.clone(),
