@@ -10,9 +10,10 @@ use hyper::header::{ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
-use std::sync::Arc;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use codec::{CodecBase, Codec};
 use client::Client;
@@ -233,6 +234,7 @@ fn make_method_not_allowed_error<'a,>(mut res: Response<'a, Fresh>, method: Meth
 pub struct HttpClient {
     client: Arc<HyperClient>,
     url: String,
+    current_id: Arc<AtomicU64>
 }
 
 impl Default for HttpClient {
@@ -240,6 +242,7 @@ impl Default for HttpClient {
         HttpClient {
             client: Arc::new(HyperClient::new()),
             url: "127.0.0.1:8000".to_string(),
+            current_id: Arc::new(AtomicU64::new(1)),
         }
     }
 }
@@ -249,17 +252,37 @@ impl Client for HttpClient {
         HttpClient {
             client: Arc::new(HyperClient::new()),
             url: url.clone(),
+            current_id: Arc::new(AtomicU64::new(1)),
         }
     }
-    fn call<Request, Success, Error, C>(&self, endpoint: &str, ctx: &Context, body: &Request)
+    fn call<Request, Success, Error, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
         -> Result<Success, Error>
         where C: CodecBase + Codec<Request> + Codec<Success> + Codec<Error>,
         Request: Default, Success: Default, Error: Default {
+
+        let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
+
+        let codec = C::default();
+        let message = match <C as Codec<Request>>::encode_message(&codec, req, endpoint, id) {
+            Ok(m) => m,
+            Err(_) => unreachable!()
+        };
         let cc = self.client.clone();
-        let _ = cc.post(&self.url).body("").send();
-        // match cc.post(&self.url).body(body).send() {
-//
-        // };
+        let mut res = cc.post(&self.url)
+            .header(codec.content_type())
+            .body(&message)
+            .send();
+
+        match res {
+            Ok(ref mut ok_res) => {
+                let mut s = String::new();
+                ok_res.read_to_string(&mut s);
+                println!("response: {}", s);
+            },
+            Err(e) => {
+                error!("rutile-rpc: error while sending request: {}", e);
+            }
+        };
         return Ok(Success::default());
     }
 }

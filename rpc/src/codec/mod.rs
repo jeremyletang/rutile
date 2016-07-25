@@ -17,10 +17,10 @@ pub trait Message: Clone + Default + Sized {
     type I: Clone;
     fn get_method(&self) -> &str;
     fn get_body(&self) -> &Self::I;
-    fn get_id(&self) -> i64;
+    fn get_id(&self) -> u64;
     fn set_method(&mut self, method: &str);
     fn set_body(&mut self, body: &Self::I);
-    fn set_id(&mut self, id: i64);
+    fn set_id(&mut self, id: u64);
 }
 
 pub trait Codec<T>: Clone + Default + CodecBase {
@@ -31,7 +31,7 @@ pub trait Codec<T>: Clone + Default + CodecBase {
     fn from_string(&self, &str) -> Result<T, String>;
     fn to_string(&self, &T) -> Result<String, String>;
     fn decode_message(&self, &String) -> Result<Box<Self::M>, String>;
-    fn encode_message(&self, message: &T, method: &str, id: i64) -> Result<String, String>;
+    fn encode_message(&self, message: &T, method: &str, id: u64) -> Result<String, String>;
 }
 
 pub trait CodecBase: Default {
@@ -44,6 +44,7 @@ pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &
     where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Result<Response, Error>,
     C: Codec<Request> + Codec<Response> + Codec<Error> {
 
+    info!("message received: {}", body);
     let message = match <C as Codec<Request>>::decode_message(codec, body) {
         Ok(m) => m,
         Err(e) => return Err(ServeRequestError::InvalidBody(e))

@@ -26,17 +26,17 @@ pub struct JsonCodec {
 pub struct JsonMessage<T> where T: Default + Clone + Serialize + Deserialize {
     method: String,
     body: T,
-    id: i64,
+    id: u64,
 }
 
 impl<T> Message for JsonMessage<T> where T: Default + Clone + Serialize + Deserialize{
     type I = T;
     fn get_method(&self) -> &str { &self.method }
     fn get_body(&self) -> &Self::I { &self.body }
-    fn get_id(&self) -> i64 { self.id }
+    fn get_id(&self) -> u64 { self.id }
     fn set_method(&mut self, method: &str) { self.method = method.to_string(); }
     fn set_body(&mut self, body: &Self::I) { self.body = body.clone(); }
-    fn set_id(&mut self, id: i64) { self.id = id; }
+    fn set_id(&mut self, id: u64) { self.id = id; }
 }
 
 impl JsonCodec {
@@ -94,7 +94,7 @@ impl<T> Codec<T> for JsonCodec
         }
     }
 
-    fn encode_message(&self, body: &T, method: &str, id: i64) -> Result<String, String> {
+    fn encode_message(&self, body: &T, method: &str, id: u64) -> Result<String, String> {
         let json_message = JsonMessage{
             method: method.to_string(),
             body: body.clone(),
