@@ -23,8 +23,12 @@ fn main() {
     (0..10).map(|_| {
         let cc = c.clone();
         thread::spawn(move || {
-            let _ = cc.create_person::<JsonCodec>(&Context::new(),
+            let res = cc.create_person::<JsonCodec>(&Context::new(),
                                                   &Person{name: "thug".to_string(), age: 42});
+            match res {
+                Ok(v) => info!("received: {:?}", v),
+                Err(e) => error!("client error: {}", e)
+            }
         })
     }).collect::<Vec<_>>().into_iter().map(|j| j.join()).collect::<Vec<_>>();
 }

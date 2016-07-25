@@ -250,12 +250,11 @@ fn make_client(cx: &mut ExtCtxt,
                 }
 
                 $(pub fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
-                    -> $methods_ret
+                    -> Result<$methods_ret, String>
                     where C: ::rpc::Codec<$methods_param_bis>
                         + ::rpc::Codec<$methods_ret_bis>
                         + Default {
-                    let _ = self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req);
-                    return Default::default();
+                    self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
                 })*
             }
         ).unwrap()

@@ -15,7 +15,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use codec::{CodecBase, Codec};
+use codec::{CodecBase, Codec, Message};
 use client::{Client, RpcError};
 use context::Context;
 use service::{Service, ServeRequestError};
@@ -263,7 +263,7 @@ impl Client for HttpClient {
     fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
-        Request: Default, Response: Default {
+        Request: Default, Response: Default + Clone {
         let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
 
         let codec = C::default();
@@ -280,9 +280,13 @@ impl Client for HttpClient {
         match res {
             Ok(ref mut ok_res) => {
                 let mut s = String::new();
-                ok_res.read_to_string(&mut s);
-
-                return Ok(Response::default());
+                let _ = ok_res.read_to_string(&mut s);
+                info!("response: {}", s);
+                let concrete: &Response = match <C as Codec<Response>>::decode_message(&codec, &s) {
+                    Ok(concrete) => unsafe {::std::mem::transmute(concrete.get_body())},
+                    Err(e) => return Err(e)
+                };
+                return Ok((*concrete).clone());
             },
             Err(e) => {
                 return Err(format!("{}", e));
