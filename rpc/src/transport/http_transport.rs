@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use codec::{CodecBase, Codec};
-use client::Client;
+use client::{Client, RpcError};
 use context::Context;
 use service::{Service, ServeRequestError};
 use transport::{Transport, ListeningTransport,
@@ -249,17 +249,21 @@ impl Default for HttpClient {
 
 impl Client for HttpClient {
     fn new(url: String) -> HttpClient {
+        use std::time::Duration;
+        let mut client = HyperClient::new();
+        client.set_read_timeout(Some(Duration::new(2, 0)));
+        client.set_write_timeout(Some(Duration::new(2,0)));
         HttpClient {
-            client: Arc::new(HyperClient::new()),
+            client: Arc::new(client),
             url: url.clone(),
             current_id: Arc::new(AtomicU64::new(1)),
         }
     }
-    fn call<Request, Success, Error, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
-        -> Result<Success, Error>
-        where C: CodecBase + Codec<Request> + Codec<Success> + Codec<Error>,
-        Request: Default, Success: Default, Error: Default {
 
+    fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
+        -> Result<Response, String>
+        where C: CodecBase + Codec<Request> + Codec<Response>,
+        Request: Default, Response: Default {
         let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
 
         let codec = C::default();
@@ -277,12 +281,12 @@ impl Client for HttpClient {
             Ok(ref mut ok_res) => {
                 let mut s = String::new();
                 ok_res.read_to_string(&mut s);
-                println!("response: {}", s);
+
+                return Ok(Response::default());
             },
             Err(e) => {
-                error!("rutile-rpc: error while sending request: {}", e);
-            }
-        };
-        return Ok(Success::default());
+                return Err(format!("{}", e));
+            },
+        }
     }
 }

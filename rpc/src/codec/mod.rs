@@ -13,7 +13,7 @@ use transport::TransportResponse;
 
 pub mod json_codec;
 
-pub trait Message: Clone + Default + Sized {
+pub trait Message: Clone + Sized {
     type I: Clone;
     fn get_method(&self) -> &str;
     fn get_body(&self) -> &Self::I;
@@ -39,10 +39,10 @@ pub trait CodecBase: Default {
     fn content_type(&self) -> ContentType;
 }
 
-pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F, res: &mut TransportResponse)
+pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F, res: &mut TransportResponse)
     -> Result<(), ServeRequestError>
-    where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Result<Response, Error>,
-    C: Codec<Request> + Codec<Response> + Codec<Error> {
+    where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
+    C: Codec<Request> + Codec<Response>  {
 
     info!("message received: {}", body);
     let message = match <C as Codec<Request>>::decode_message(codec, body) {
@@ -50,20 +50,12 @@ pub fn __decode_and_call<Request, Response, Error, F, C>(ctx: &Context, codec: &
         Err(e) => return Err(ServeRequestError::InvalidBody(e))
     };
     info!("dispatching message to method {}", message.get_method());
-    let response_string = match f(ctx,  message.get_body().clone()) {
-        Ok(res) => {
-            match <C as Codec<Response>>::encode_message(codec, &res, message.get_method(), message.get_id()) {
-                Ok(m) => Ok(m),
-                Err(e) => Err(e)
-            }
-        },
-        Err(err) => {
-            match <C as Codec<Error>>::encode_message(codec, &err, message.get_method(), message.get_id()) {
-                Ok(m) => Ok(m),
-                Err(e) => Err(e)
-            }
-        },
+    let res_raw = f(ctx, message.get_body().clone());
+    let response_string = match <C as Codec<Response>>::encode_message(codec, &res_raw, message.get_method(), message.get_id()) {
+        Ok(m) => Ok(m),
+        Err(e) => Err(e)
     };
+
     match response_string {
         Ok(s) => {
             let _ = res.write_all(s.as_bytes());

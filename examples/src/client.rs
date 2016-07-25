@@ -20,7 +20,7 @@ fn main() {
     info!("calling server at address: 127.0.0.1:9999");
     let c = Arc::new(Client::new("http://127.0.0.1:9999/"));
 
-    (0..100).map(|_| {
+    (0..10).map(|_| {
         let cc = c.clone();
         thread::spawn(move || {
             let _ = cc.create_person::<JsonCodec>(&Context::new(),

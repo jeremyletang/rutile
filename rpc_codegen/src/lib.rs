@@ -39,11 +39,11 @@ mod codec;
 pub struct MethodData {
     id: Ident,
     params: Vec<P<Ty>>,
-    ret: Vec<P<Ty>>,
+    ret: P<Ty>,
 }
 
 impl MethodData {
-    pub fn new(id: Ident, params: Vec<P<Ty>>, ret: Vec<P<Ty>>) -> MethodData {
+    pub fn new(id: Ident, params: Vec<P<Ty>>, ret: P<Ty>) -> MethodData {
         MethodData {
             id: id,
             params: params,
@@ -108,27 +108,17 @@ fn extract_method_args(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
     sig.decl.inputs.iter().map(|a| a.ty.clone()).collect()
 }
 
-fn extract_method_return_type_parameters(sig: &syntax::ast::MethodSig) -> Vec<P<Ty>> {
+fn extract_method_return_type(cx: &mut ExtCtxt, sig: &syntax::ast::MethodSig) -> P<Ty> {
     match &sig.decl.output {
         &FunctionRetTy::Ty(ref ty) => {
-            match (*ty).node {
-                TyKind::Path(_, ref p) => {
-                        let seg_len = p.segments.len();
-                        match p.segments[seg_len-1].parameters {
-                            PathParameters::AngleBracketed(ref pp) => {
-                                pp.types.to_vec()
-                            },
-                            _ => vec![]
-                        }
-                },
-                _ => {
-                    vec![]
-                }
-            }
+            ty.clone()
         }
-        _ => {
-            vec![]
+        &FunctionRetTy::Default(span) => {
+            cx.span_fatal(span, "rpc method cannot return default")
         },
+        &FunctionRetTy::None(span) => {
+            cx.span_fatal(span, "rpc method cannot have no return for now")
+        }
     }
 }
 
@@ -139,11 +129,8 @@ fn make_service_methods_list(cx: &mut ExtCtxt, items: &Vec<ImplItem>)
         match i.node {
             ImplItemKind::Method(ref sig, _) => {
                 let args = extract_method_args(sig);
-                let ret_ty_params = extract_method_return_type_parameters(sig);
-                if ret_ty_params.len() == 0 {
-                    cx.span_err(i.span, "service methods must return Result<_, _>");
-                }
-                methods.push(MethodData::new(i.ident, args, ret_ty_params));
+                let ret = extract_method_return_type(cx, sig);
+                methods.push(MethodData::new(i.ident, args, ret));
             }
             _ => {
                 // nothing to do with non methods kinds
@@ -196,13 +183,12 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
     methods_raw.iter()
         .map(|ref md| {
             let ref req = md.params[2];
-            let ref ret_ok = md.ret[0];
-            let ref ret_err = md.ret[1];
+            let ref ret = md.ret;
             let ref fn_identifier = md.id;
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             quote_block!(cx, {
-                let f = |ctx: &::rpc::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$fn_identifier(ctx, r)};
-                ::rpc::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
+                let f = |ctx: &::rpc::Context, r: $req| -> $ret {self.$fn_identifier(ctx, r)};
+                ::rpc::__decode_and_call::<$req, $ret, _, ::rpc::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
             }).unwrap()
         }).collect()
 }
@@ -222,18 +208,15 @@ fn make_client(cx: &mut ExtCtxt,
     let methods_raw = make_service_methods_list(cx, &methods);
     let methods_idents = methods_raw.iter().map(|ref md| md.id).into_iter();
     let methods_param = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
-    let methods_ret1 = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
-    let methods_ret2 = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
+    let methods_ret = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
 
     // this is sub optimal
     let methods_param_bis = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
-    let methods_ret1_bis = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
-    let methods_ret2_bis = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
+    let methods_ret_bis = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
 
     // this will never end
     let methods_param_ter = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
-    let methods_ret1_ter = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
-    let methods_ret2_ter = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
+    let methods_ret_ter = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
 
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
 
@@ -267,13 +250,12 @@ fn make_client(cx: &mut ExtCtxt,
                 }
 
                 $(pub fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
-                    -> Result<$methods_ret1, $methods_ret2>
+                    -> $methods_ret
                     where C: ::rpc::Codec<$methods_param_bis>
-                        + ::rpc::Codec<$methods_ret1_bis>
-                        + ::rpc::Codec<$methods_ret2_bis>
+                        + ::rpc::Codec<$methods_ret_bis>
                         + Default {
-                    let _ = self.client.call::<_, $methods_ret1_ter, $methods_ret2_ter, C>($method_name_lits, &c, req);
-                    return Ok(Default::default());
+                    let _ = self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req);
+                    return Default::default();
                 })*
             }
         ).unwrap()

@@ -8,10 +8,16 @@
 use codec::{Codec, CodecBase};
 use context::Context;
 
+pub enum RpcError {
+    HostUnreachable,
+    Timeout,
+}
+
+
 pub trait Client : Default {
     fn new(addr: String) -> Self;
-    fn call<Request, Success, Error, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
-        -> Result<Success, Error>
-        where C: CodecBase + Codec<Request> + Codec<Success> + Codec<Error>,
-        Request: Default, Success: Default, Error: Default;
+    fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
+        -> Result<Response, String>
+        where C: CodecBase + Codec<Request> + Codec<Response>,
+        Request: Default, Response: Default;
 }
