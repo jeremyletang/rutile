@@ -15,14 +15,21 @@ extern crate serde_json;
 extern crate log;
 extern crate hyper;
 
-pub mod context;
-pub mod codec;
-pub mod client;
-pub mod transport;
-pub mod server;
-pub mod service;
+mod context;
+mod codec;
+mod client;
+mod transport;
+mod server;
+mod service;
 
 pub mod ext_exports {
     pub use hyper::header::ContentType;
     pub use hyper::client::Client;
 }
+
+pub use context::Context;
+pub use codec::{CodecBase, Codec, json_codec, __decode_and_call};
+pub use client::Client;
+pub use server::{Listening, Server};
+pub use transport::{Transport, ListeningTransport, TransportResponse, TransportRequest, http_transport};
+pub use service::{ServeRequestError, Service};

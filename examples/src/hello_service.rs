@@ -1,11 +1,11 @@
-#![rpc_service(JsonCodec = "::rpc::codec::json_codec::JsonCodec")]
+#![rpc_service(JsonCodec = "::rpc::json_codec::JsonCodec")]
 #![feature(custom_derive, plugin, specialization, custom_attribute)]
 #![plugin(rpc_macros, serde_macros)]
 // #![allow(unused_imports)]
 
 extern crate rpc;
 
-use rpc::context::Context;
+use rpc::Context;
 
 pub struct HelloService;
 
@@ -29,7 +29,7 @@ impl Default for TestEnum {
 
 #[rpc_methods]
 impl HelloService {
-    pub fn hello(&self, _: &::rpc::context::Context , req: String) -> Result<i32, f32> {
+    pub fn hello(&self, _: &::rpc::Context , req: String) -> Result<i32, f32> {
         println!("from world: {}", req);
         Ok(42)
     }

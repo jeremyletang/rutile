@@ -201,8 +201,8 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
             let ref fn_identifier = md.id;
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             quote_block!(cx, {
-                let f = |ctx: &::rpc::context::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$fn_identifier(ctx, r)};
-                ::rpc::codec::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::codec::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
+                let f = |ctx: &::rpc::Context, r: $req| -> Result<$ret_ok, $ret_err> {self.$fn_identifier(ctx, r)};
+                ::rpc::__decode_and_call::<$req, $ret_ok, $ret_err, _, ::rpc::json_codec::JsonCodec>(&ctx, &codec, &body, f, res)
             }).unwrap()
         }).collect()
 }
@@ -239,13 +239,13 @@ fn make_client(cx: &mut ExtCtxt,
 
     vec![
         quote_item!(cx,
-            pub struct $client_struct_name_expr<T: ::rpc::client::Client = ::rpc::transport::http_transport::HttpClient> {
+            pub struct $client_struct_name_expr<T: ::rpc::Client = ::rpc::http_transport::HttpClient> {
                 timeout_: ::std::time::Duration,
                 client: T,
             }
         ).unwrap(),
         quote_item!(cx,
-            impl<T> $client_struct_name_expr<T> where T: ::rpc::client::Client {
+            impl<T> $client_struct_name_expr<T> where T: ::rpc::Client {
                 pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
                     $client_struct_name_expr {
                         timeout_: ::std::time::Duration::new(5, 0),
@@ -266,11 +266,11 @@ fn make_client(cx: &mut ExtCtxt,
                     return self;
                 }
 
-                $(pub fn $methods_idents<C>(&self, c: &::rpc::context::Context, req: &$methods_param)
+                $(pub fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
                     -> Result<$methods_ret1, $methods_ret2>
-                    where C: ::rpc::codec::Codec<$methods_param_bis>
-                        + ::rpc::codec::Codec<$methods_ret1_bis>
-                        + ::rpc::codec::Codec<$methods_ret2_bis>
+                    where C: ::rpc::Codec<$methods_param_bis>
+                        + ::rpc::Codec<$methods_ret1_bis>
+                        + ::rpc::Codec<$methods_ret2_bis>
                         + Default {
                     let _ = self.client.call::<_, $methods_ret1_ter, $methods_ret2_ter, C>($method_name_lits, &c, req);
                     return Ok(Default::default());
@@ -300,7 +300,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let where_clauses = generics.where_clause.clone();
 
     quote_item!(cx,
-        impl$generics ::rpc::service::Service for $ty $where_clauses {
+        impl$generics ::rpc::Service for $ty $where_clauses {
             default fn __rpc_service_name(&self) ->  &'static str{
                 return $service_name_expr;
             }
@@ -308,24 +308,24 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 $list_endpoints_fn_expr
             }
             default fn __rpc_list_supported_codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
-                use ::rpc::codec::CodecBase;
+                use ::rpc::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::context::Context,
-                                                  req: &mut ::rpc::transport::TransportRequest,
-                                                  res: &mut ::rpc::transport::TransportResponse)
-                                                  -> Result<(), ::rpc::service::ServeRequestError> {
-                use ::rpc::codec::{Codec, CodecBase};
+            default fn __rpc_serve_request(&self, ctx: ::rpc::Context,
+                                                  req: &mut ::rpc::TransportRequest,
+                                                  res: &mut ::rpc::TransportResponse)
+                                                  -> Result<(), ::rpc::ServeRequestError> {
+                use ::rpc::{Codec, CodecBase};
                 let mut body = String::new();
                 let _ = req.read_to_string(&mut body);
-                let codec = ::rpc::codec::json_codec::JsonCodec::default();
+                let codec = ::rpc::json_codec::JsonCodec::default();
                 let method = match codec.method(&body) {
                     Ok(s) => s,
-                    Err(e) => return Err(::rpc::service::ServeRequestError::NoMethodProvided(e))
+                    Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
                 };
                 match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
-                    _ => return Err(::rpc::service::ServeRequestError::UnrecognizedMethod(method))
+                    _ => return Err(::rpc::ServeRequestError::UnrecognizedMethod(method))
                 }
             }
         }

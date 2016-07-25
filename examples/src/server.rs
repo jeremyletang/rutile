@@ -5,7 +5,7 @@ extern crate log;
 extern crate env_logger;
 extern crate hello_service;
 
-use rpc::server::Server;
+use rpc::Server;
 use hello_service::HelloService;
 
 fn main() {

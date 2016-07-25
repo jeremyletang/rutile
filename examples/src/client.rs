@@ -10,11 +10,10 @@ use std::sync::Arc;
 
 use hello_service::HelloServiceClient;
 use hello_service::Person;
-use rpc::context::Context;
-use rpc::codec::json_codec::JsonCodec;
+use rpc::Context;
+use rpc::json_codec::JsonCodec;
 
-type Client = HelloServiceClient<::rpc::transport::http_transport::HttpClient>;
-
+type Client = HelloServiceClient<::rpc::http_transport::HttpClient>;
 
 fn main() {
     let _ = env_logger::init();
