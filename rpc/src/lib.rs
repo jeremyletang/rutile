@@ -24,4 +24,5 @@ pub mod service;
 
 pub mod ext_exports {
     pub use hyper::header::ContentType;
+    pub use hyper::client::Client;
 }

@@ -214,6 +214,8 @@ fn make_client(cx: &mut ExtCtxt,
               codec_paths: &Vec<Path>)
               -> Vec<P<Item>> {
 
+    let service_name = make_service_name(cx, &(*ty).node);
+
     let client_struct_name = make_client_struct_name(cx, &(*ty).node);
     let client_struct_name_expr = client_struct_name.to_ident();
 
@@ -228,38 +230,49 @@ fn make_client(cx: &mut ExtCtxt,
     let methods_ret1_bis = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
     let methods_ret2_bis = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
 
+    // this will never end
+    let methods_param_ter = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret1_ter = methods_raw.iter().map(|ref md| md.ret[0].clone()).into_iter();
+    let methods_ret2_ter = methods_raw.iter().map(|ref md| md.ret[1].clone()).into_iter();
+
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
 
     vec![
         quote_item!(cx,
-            pub struct $client_struct_name_expr {
-                timeout: ::std::time::Duration
+            pub struct $client_struct_name_expr<T: ::rpc::client::Client = ::rpc::transport::http_transport::HttpClient> {
+                timeout_: ::std::time::Duration,
+                client: T,
             }
         ).unwrap(),
         quote_item!(cx,
-            impl $client_struct_name_expr {
-                pub fn new() -> $client_struct_name_expr {
+            impl<T> $client_struct_name_expr<T> where T: ::rpc::client::Client {
+                pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
                     $client_struct_name_expr {
-                        timeout: ::std::time::Duration::new(5, 0),
+                        timeout_: ::std::time::Duration::new(5, 0),
+                        client: T::new(url.into()),
                     }
                 }
-                pub fn with_timeout(d: ::std::time::Duration) -> $client_struct_name_expr {
+                pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
                     $client_struct_name_expr {
-                        timeout: d,
+                        timeout_: d,
+                        client: T::new(url.into()),
                     }
                 }
                 pub fn get_timeout(&self) -> ::std::time::Duration {
-                    self.timeout
+                    self.timeout_
                 }
-                pub fn set_timeout(&mut self, new_d: ::std::time::Duration) {
-                    self.timeout = new_d
+                pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
+                    self.timeout_ = new_d;
+                    return self;
                 }
 
-                $(pub fn $methods_idents<C>(&self, _: ::rpc::context::Context, _: $methods_param)
+                $(pub fn $methods_idents<C>(&self, c: &::rpc::context::Context, req: &$methods_param)
                     -> Result<$methods_ret1, $methods_ret2>
                     where C: ::rpc::codec::Codec<$methods_param_bis>
                         + ::rpc::codec::Codec<$methods_ret1_bis>
                         + ::rpc::codec::Codec<$methods_ret2_bis>
                         + Default {
+                    let _ = self.client.call::<_, $methods_ret1_ter, $methods_ret2_ter, C>($method_name_lits, &c, req);
                     return Ok(Default::default());
                 })*
             }

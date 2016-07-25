@@ -5,13 +5,17 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use hyper::client::Client as HyperClient;
 use hyper::header::{ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
 use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
+use std::sync::Arc;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
+use codec::{CodecBase, Codec};
+use client::Client;
 use context::Context;
 use service::{Service, ServeRequestError};
 use transport::{Transport, ListeningTransport,
@@ -223,4 +227,39 @@ fn make_method_not_allowed_error<'a,>(mut res: Response<'a, Fresh>, method: Meth
     *res.status_mut() = ::hyper::status::StatusCode::MethodNotAllowed;
     let mut res = res.start().unwrap();
     res.write_all(body.as_bytes()).unwrap();
+}
+
+#[derive(Clone)]
+pub struct HttpClient {
+    client: Arc<HyperClient>,
+    url: String,
+}
+
+impl Default for HttpClient {
+    fn default() -> HttpClient {
+        HttpClient {
+            client: Arc::new(HyperClient::new()),
+            url: "127.0.0.1:8000".to_string(),
+        }
+    }
+}
+
+impl Client for HttpClient {
+    fn new(url: String) -> HttpClient {
+        HttpClient {
+            client: Arc::new(HyperClient::new()),
+            url: url.clone(),
+        }
+    }
+    fn call<Request, Success, Error, C>(&self, endpoint: &str, ctx: &Context, body: &Request)
+        -> Result<Success, Error>
+        where C: CodecBase + Codec<Request> + Codec<Success> + Codec<Error>,
+        Request: Default, Success: Default, Error: Default {
+        let cc = self.client.clone();
+        let _ = cc.post(&self.url).body("").send();
+        // match cc.post(&self.url).body(body).send() {
+//
+        // };
+        return Ok(Success::default());
+    }
 }
