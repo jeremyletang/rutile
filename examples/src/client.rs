@@ -3,17 +3,16 @@ extern crate serde_json;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
-extern crate hello_service;
+extern crate test_service;
 
 use std::thread;
 use std::sync::Arc;
 
-use hello_service::HelloServiceClient;
-use hello_service::Person;
+use test_service::{PersonHandlerClient, Person};
 use rpc::Context;
 use rpc::json_codec::JsonCodec;
 
-type Client = HelloServiceClient<::rpc::http_transport::HttpClient>;
+type Client = PersonHandlerClient<::rpc::http_transport::HttpClient>;
 
 fn main() {
     let _ = env_logger::init();
@@ -23,7 +22,7 @@ fn main() {
     (0..10).map(|_| {
         let cc = c.clone();
         thread::spawn(move || {
-            let res = cc.create_person::<JsonCodec>(&Context::new(),
+            let res = cc.create::<JsonCodec>(&Context::new(),
                                                     &Person{name: "thug".to_string(), age: 42});
             match res {
                 Ok(v) => info!("received: {:?}", v),

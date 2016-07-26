@@ -18,8 +18,8 @@ name = "client"
 path = "src/client.rs"
 
 [lib]
-name = "hello_service"
-path = "src/hello_service.rs"
+name = "test_service"
+path = "src/test_service/lib.rs"
 
 [build-dependencies]
 rpc_codegen = { version = "0.1.0", path = "../rpc_codegen" }
