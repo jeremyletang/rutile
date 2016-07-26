@@ -290,21 +290,24 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let where_clauses = generics.where_clause.clone();
 
     quote_item!(cx,
-        impl$generics ::rpc::Service for $ty $where_clauses {
-            default fn __rpc_service_name(&self) ->  &'static str{
+        impl$generics ::rpc::Handler for $ty $where_clauses {
+            default fn handler_name(&self) ->  &'static str{
                 return $service_name_expr;
             }
-            default fn __rpc_list_methods(&self) -> Vec<String> {
+            default fn service_name(&self) ->  &'static str{
+                return $service_name_expr;
+            }
+            default fn methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            default fn __rpc_list_supported_codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
+            default fn codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
                 use ::rpc::CodecBase;
                 $list_supported_codecs_expr
             }
-            default fn __rpc_serve_request(&self, ctx: ::rpc::Context,
-                                                  req: &mut ::rpc::TransportRequest,
-                                                  res: &mut ::rpc::TransportResponse)
-                                                  -> Result<(), ::rpc::ServeRequestError> {
+            default fn handle(&self, ctx: ::rpc::Context,
+                              req: &mut ::rpc::TransportRequest,
+                              res: &mut ::rpc::TransportResponse)
+                              -> Result<(), ::rpc::ServeRequestError> {
                 use ::rpc::{Codec, CodecBase};
                 let mut body = String::new();
                 let _ = req.read_to_string(&mut body);
@@ -441,16 +444,12 @@ fn expand_rpc_service(cx: &mut ExtCtxt,
 }
 
 // this is only used to prevent warning while using the rpc_methods attribute
-fn expand_rpc_methods(_: &mut ExtCtxt,
-                      _: Span,
-                      _: &MetaItem,
-                      annotatable: Annotatable)
+fn expand_rpc_methods(_: &mut ExtCtxt, _: Span, _: &MetaItem, annotatable: Annotatable)
                       -> Vec<Annotatable> {
     vec![annotatable]
 }
 
 pub fn register(reg: &mut rustc_plugin::Registry) {
-    println!("VERSION: {:?}", version::make());
     reg.register_syntax_extension(syntax::parse::token::intern("rpc_service"),
                                   MultiModifier(Box::new(expand_rpc_service)));
     // to prevent warning for unused attributes

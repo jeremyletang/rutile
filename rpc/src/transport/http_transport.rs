@@ -9,7 +9,8 @@ use hyper::client::Client as HyperClient;
 use hyper::header::{ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
-use hyper::server::{Server, Listening, Request, Response, Fresh, Handler};
+use hyper::server::{Server, Listening, Request, Response, Fresh};
+use hyper::server::Handler as HyperHandler;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -18,13 +19,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use codec::{CodecBase, Codec, Message};
 use client::{Client, RpcError};
 use context::Context;
-use service::{Service, ServeRequestError};
+use handler::{Handler, ServeRequestError};
 use transport::{Transport, ListeningTransport,
     ListeningTransportHandler, TransportRequest, TransportResponse};
 
 pub struct HttpTransport {
     server: Server<HttpListener>,
-    services: Vec<Box<Service>>,
+    services: Vec<Box<Handler>>,
 }
 
 pub struct ListeningHttpTransport {
@@ -64,18 +65,18 @@ impl ListeningTransport for ListeningHttpTransport {
 
 impl Transport for HttpTransport {
     fn handle(mut self) -> ListeningTransportHandler {
-        let services: Vec<Box<Service>> = self.services.drain(..).collect();
+        let services: Vec<Box<Handler>> = self.services.drain(..).collect();
         let listener = self.server.handle(HttpHandler::new(services)).unwrap();
         ListeningTransportHandler::new(ListeningHttpTransport::new(listener))
     }
 
-    fn using<S>(&mut self, s: S) where S: Service {
-        self.services.push(Box::new(s));
+    fn using<H>(&mut self, h: H) where H: Handler {
+        self.services.push(Box::new(h));
     }
 
     fn has_method(&self, method: &str) -> bool {
         for s in &self.services {
-            match s.__rpc_list_methods().iter().find(|ref x| **x == method) {
+            match s.methods().iter().find(|ref x| **x == method) {
                 Some(_) => return true,
                 None => {}
             }
@@ -118,25 +119,25 @@ impl TransportResponse for HttpTransportResponse {}
 
 
 pub struct HttpHandler {
-    services: Vec<Box<Service>>,
+    handlers: Vec<Box<Handler>>,
     content_types: Vec<ContentType>,
 }
 
 impl HttpHandler {
-    pub fn new(services: Vec<Box<Service>>) -> HttpHandler {
+    pub fn new(handlers: Vec<Box<Handler>>) -> HttpHandler {
         let mut ct = vec![];
-        for s in &services {
-            ct.append(&mut s.__rpc_list_supported_codecs());
+        for s in &handlers {
+            ct.append(&mut s.codecs());
         }
         ct.dedup();
         HttpHandler {
-            services: services,
+            handlers: handlers,
             content_types: ct,
         }
     }
 }
 
-impl Handler for HttpHandler {
+impl HyperHandler for HttpHandler {
     fn handle<'a, 'k>(&'a self, req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
         // add base headers
         make_base_headers(&mut res);
@@ -164,8 +165,8 @@ impl Handler for HttpHandler {
         let mut method_error = String::new();
 
         // then call the services to execute the method
-        for s in &self.services {
-            match s.__rpc_serve_request(Context::new(), &mut transport_request, &mut transport_response) {
+        for h in &self.handlers {
+            match h.handle(Context::new(), &mut transport_request, &mut transport_response) {
                 Ok(_) => {
                     // write the response body
                     make_response(&transport_response.buf, res);

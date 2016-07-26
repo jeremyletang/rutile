@@ -8,7 +8,7 @@
 use std::io::{Read, Write};
 use std::net::SocketAddr;
 
-use service::Service;
+use handler::Handler;
 
 pub mod http_transport;
 
@@ -20,7 +20,7 @@ pub trait TransportResponse: Write {}
 
 pub trait Transport {
     fn handle(self) -> ListeningTransportHandler;
-    fn using<S>(&mut self, s: S) where S: Service;
+    fn using<H>(&mut self, h: H) where H: Handler;
     fn has_method(&self, &str) -> bool;
 }
 

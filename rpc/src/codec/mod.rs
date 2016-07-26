@@ -8,7 +8,7 @@
 use hyper::header::ContentType;
 
 use context::Context;
-use service::ServeRequestError;
+use handler::ServeRequestError;
 use transport::TransportResponse;
 
 pub mod json_codec;

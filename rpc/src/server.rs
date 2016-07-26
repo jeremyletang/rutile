@@ -7,7 +7,7 @@
 
 use std::net::SocketAddr;
 
-use service::Service;
+use handler::Handler;
 use transport::http_transport::HttpTransport;
 use transport::{Transport, ListeningTransportHandler};
 
@@ -32,8 +32,8 @@ impl<T> Server<T> where T: Transport {
         }
     }
 
-    pub fn using<S>(&mut self, s: S) -> &mut Self where S: Service {
-        self.transport.using(s);
+    pub fn using<H>(&mut self, h: H) -> &mut Self where H: Handler {
+        self.transport.using(h);
         return self;
     }
 

@@ -20,7 +20,7 @@ mod codec;
 mod client;
 mod transport;
 mod server;
-mod service;
+mod handler;
 
 pub mod ext_exports {
     pub use hyper::header::ContentType;
@@ -32,4 +32,4 @@ pub use codec::{CodecBase, Codec, json_codec, __decode_and_call};
 pub use client::Client;
 pub use server::{Listening, Server};
 pub use transport::{Transport, ListeningTransport, TransportResponse, TransportRequest, http_transport};
-pub use service::{ServeRequestError, Service};
+pub use handler::{ServeRequestError, Handler};

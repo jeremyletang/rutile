@@ -24,7 +24,7 @@ fn main() {
         let cc = c.clone();
         thread::spawn(move || {
             let res = cc.create_person::<JsonCodec>(&Context::new(),
-                                                  &Person{name: "thug".to_string(), age: 42});
+                                                    &Person{name: "thug".to_string(), age: 42});
             match res {
                 Ok(v) => info!("received: {:?}", v),
                 Err(e) => error!("client error: {}", e)

@@ -11,14 +11,11 @@ include = ["Cargo.toml", "src/**/*.rs"]
 
 [build-dependencies]
 quasi_codegen = { version = "^0.15.0", optional = true }
-# syntex = { version = "^0.36.0", optional = true }
+clippy = { version = "^0.*", optional = true }
 
 [dependencies]
 git2 = "0.3"
-aster = { version = "^0.21.1", default-features = false }
-rpc = { version = "0.1.0", path = "../rpc" }
-clippy = { version = "^0.*", optional = true }
-quasi = { version = "^0.15.0", default-features = false }
 quasi_macros = { version = "^0.15.0", optional = false }
-# syntex = { version = "^0.36.0", optional = true }
-# syntex_syntax = { version = "^0.36.0", optional = true }
+rpc = { version = "0.1.0", path = "../rpc" }
+quasi = { version = "^0.15.0", default-features = false }
+aster = { version = "^0.21.1", default-features = false }

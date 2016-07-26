@@ -17,10 +17,11 @@ pub enum ServeRequestError {
     Custom(String),
 }
 
-pub trait Service: Send + Sync + 'static {
-    fn __rpc_service_name(&self) -> &'static str;
-    fn __rpc_list_methods(&self) -> Vec<String>;
-    fn __rpc_list_supported_codecs(&self) -> Vec<ContentType>;
-    fn __rpc_serve_request(&self, c: Context, req: &mut TransportRequest, res: &mut TransportResponse)
+pub trait Handler: Send + Sync + 'static {
+    fn handler_name(&self) -> &'static str;
+    fn service_name(&self) -> &'static str;
+    fn methods(&self) -> Vec<String>;
+    fn codecs(&self) -> Vec<ContentType>;
+    fn handle(&self, c: Context, req: &mut TransportRequest, res: &mut TransportResponse)
         -> Result<(), ServeRequestError>;
 }
