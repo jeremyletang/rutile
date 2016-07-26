@@ -16,6 +16,7 @@ extern crate syntax;
 extern crate rustc_plugin;
 extern crate quasi;
 extern crate aster;
+extern crate git2;
 
 use aster::ident::ToIdent;
 use aster::item::ItemBuilder;
@@ -34,6 +35,7 @@ use syntax::parse::token::InternedString;
 use syntax::ptr::P;
 
 mod codec;
+mod version;
 
 #[derive(Clone)]
 pub struct MethodData {
@@ -448,6 +450,7 @@ fn expand_rpc_methods(_: &mut ExtCtxt,
 }
 
 pub fn register(reg: &mut rustc_plugin::Registry) {
+    println!("VERSION: {:?}", version::make());
     reg.register_syntax_extension(syntax::parse::token::intern("rpc_service"),
                                   MultiModifier(Box::new(expand_rpc_service)));
     // to prevent warning for unused attributes
