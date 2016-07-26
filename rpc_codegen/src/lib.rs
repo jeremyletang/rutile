@@ -201,6 +201,7 @@ fn make_client(cx: &mut ExtCtxt,
               -> Vec<P<Item>> {
 
     let service_name = make_service_name(cx, &(*ty).node);
+    let service_name_lit = (*LitBuilder::new().str(&*service_name)).clone();
 
     let client_struct_name = make_client_struct_name(cx, &(*ty).node);
     let client_struct_name_expr = client_struct_name.to_ident();
@@ -225,6 +226,7 @@ fn make_client(cx: &mut ExtCtxt,
             pub struct $client_struct_name_expr<T: ::rpc::Client = ::rpc::http_transport::HttpClient> {
                 timeout_: ::std::time::Duration,
                 client: T,
+                service_name: String,
             }
         ).unwrap(),
         quote_item!(cx,
@@ -233,16 +235,21 @@ fn make_client(cx: &mut ExtCtxt,
                     $client_struct_name_expr {
                         timeout_: ::std::time::Duration::new(5, 0),
                         client: T::new(url.into()),
+                        service_name: $service_name_lit.to_string(),
                     }
                 }
                 pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
                     $client_struct_name_expr {
                         timeout_: d,
                         client: T::new(url.into()),
+                        service_name: $service_name_lit.to_string(),
                     }
                 }
                 pub fn get_timeout(&self) -> ::std::time::Duration {
                     self.timeout_
+                }
+                pub fn get_service_name(&self) -> &str {
+                    &self.service_name
                 }
                 pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
                     self.timeout_ = new_d;
