@@ -195,6 +195,116 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
         }).collect()
 }
 
+fn make_client_struct_decl(cx: &mut ExtCtxt, client_struct_name: &str) -> P<Item> {
+    let client_struct_name_expr = client_struct_name.to_ident();
+
+    quote_item!(cx,
+        pub struct $client_struct_name_expr<T: ::rpc::Client = ::rpc::http_transport::HttpClient> {
+            timeout_: ::std::time::Duration,
+            client: T,
+            service_name: String,
+        }
+    ).unwrap()
+}
+
+fn make_client_trait_decl(cx: &mut ExtCtxt, client_struct_name: &str, methods: &Vec<MethodData>) -> P<Item> {
+    // make the trait name
+    let client_trait_name_expr = (client_struct_name.to_string() + "Trait").to_ident();
+
+    // methods related stuff
+    let methods_idents = methods.iter().map(|ref md| md.id).into_iter();
+    let methods_param = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let methods_param_bis = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_bis = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+
+    quote_item!(cx,
+        pub trait $client_trait_name_expr {
+            $(fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
+                -> Result<$methods_ret, String>
+                where C: ::rpc::Codec<$methods_param_bis>
+                    + ::rpc::Codec<$methods_ret_bis>;)*
+        }
+    ).unwrap()
+}
+
+fn make_client_struct_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_name: &str, methods: &Vec<MethodData>) -> P<Item> {
+    // make the trait name
+    let client_struct_name_expr = client_struct_name.to_string().to_ident();
+
+    let service_name_lit = (*LitBuilder::new().str(service_name)).clone();
+
+    // methods related stuff
+    let methods_idents = methods.iter().map(|ref md| md.id).into_iter();
+    let methods_param = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let methods_param_bis = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_bis = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let methods_param_ter = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_ter = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods).into_iter();
+
+    quote_item!(cx,
+        impl<T> $client_struct_name_expr<T> where T: ::rpc::Client {
+            pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
+                $client_struct_name_expr {
+                    timeout_: ::std::time::Duration::new(5, 0),
+                    client: T::new(url.into()),
+                    service_name: $service_name_lit.to_string(),
+                }
+            }
+            pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
+                $client_struct_name_expr {
+                    timeout_: d,
+                    client: T::new(url.into()),
+                    service_name: $service_name_lit.to_string(),
+                }
+            }
+            pub fn get_timeout(&self) -> ::std::time::Duration {
+                self.timeout_
+            }
+            pub fn get_service_name(&self) -> &str {
+                &self.service_name
+            }
+            pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
+                self.timeout_ = new_d;
+                return self;
+            }
+        }
+    ).unwrap()
+}
+
+fn make_client_trait_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_name: &str, methods: &Vec<MethodData>) -> P<Item> {
+    // make the trait name
+    let client_struct_name_expr = client_struct_name.to_string().to_ident();
+    let client_trait_name_expr = (client_struct_name.to_string() + "Trait").to_ident();
+
+    let service_name_lit = (*LitBuilder::new().str(service_name)).clone();
+
+    // methods related stuff
+    let methods_idents = methods.iter().map(|ref md| md.id).into_iter();
+    let methods_param = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let methods_param_bis = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_bis = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let methods_param_ter = methods.iter().map(|ref md| md.params[2].clone()).into_iter();
+    let methods_ret_ter = methods.iter().map(|ref md| md.ret.clone()).into_iter();
+    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods).into_iter();
+
+    quote_item!(cx,
+        impl<T> $client_trait_name_expr for $client_struct_name_expr<T> where T: ::rpc::Client {
+            $(fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
+                -> Result<$methods_ret, String>
+                where C: ::rpc::Codec<$methods_param_bis>
+                    + ::rpc::Codec<$methods_ret_bis>
+                    {
+                self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
+            })*
+        }
+    ).unwrap()
+}
+
+
 fn make_client(cx: &mut ExtCtxt,
               ty: &P<Ty>,
               generics: &Generics,
@@ -203,70 +313,17 @@ fn make_client(cx: &mut ExtCtxt,
               -> Vec<P<Item>> {
 
     let service_name = make_service_name(cx, &(*ty).node);
-    let service_name_lit = (*LitBuilder::new().str(&*service_name)).clone();
 
     let client_struct_name = make_client_struct_name(cx, &(*ty).node);
     let client_struct_name_expr = client_struct_name.to_ident();
 
     let methods_raw = make_service_methods_list(cx, &methods);
-    let methods_idents = methods_raw.iter().map(|ref md| md.id).into_iter();
-    let methods_param = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
-    let methods_ret = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
-
-    // this is sub optimal
-    let methods_param_bis = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
-    let methods_ret_bis = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
-
-    // this will never end
-    let methods_param_ter = methods_raw.iter().map(|ref md| md.params[2].clone()).into_iter();
-    let methods_ret_ter = methods_raw.iter().map(|ref md| md.ret.clone()).into_iter();
-
-    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
 
     vec![
-        quote_item!(cx,
-            pub struct $client_struct_name_expr<T: ::rpc::Client = ::rpc::http_transport::HttpClient> {
-                timeout_: ::std::time::Duration,
-                client: T,
-                service_name: String,
-            }
-        ).unwrap(),
-        quote_item!(cx,
-            impl<T> $client_struct_name_expr<T> where T: ::rpc::Client {
-                pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
-                    $client_struct_name_expr {
-                        timeout_: ::std::time::Duration::new(5, 0),
-                        client: T::new(url.into()),
-                        service_name: $service_name_lit.to_string(),
-                    }
-                }
-                pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
-                    $client_struct_name_expr {
-                        timeout_: d,
-                        client: T::new(url.into()),
-                        service_name: $service_name_lit.to_string(),
-                    }
-                }
-                pub fn get_timeout(&self) -> ::std::time::Duration {
-                    self.timeout_
-                }
-                pub fn get_service_name(&self) -> &str {
-                    &self.service_name
-                }
-                pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
-                    self.timeout_ = new_d;
-                    return self;
-                }
-
-                $(pub fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
-                    -> Result<$methods_ret, String>
-                    where C: ::rpc::Codec<$methods_param_bis>
-                        + ::rpc::Codec<$methods_ret_bis>
-                        {
-                    self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
-                })*
-            }
-        ).unwrap()
+        make_client_struct_decl(cx, &client_struct_name),
+        make_client_trait_decl(cx, &client_struct_name, &methods_raw),
+        make_client_struct_impl(cx, &service_name, &client_struct_name, &methods_raw),
+        make_client_trait_impl(cx, &service_name, &client_struct_name, &methods_raw),
     ]
 }
 

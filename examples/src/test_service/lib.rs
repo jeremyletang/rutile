@@ -6,5 +6,5 @@ extern crate rpc;
 mod hello;
 mod person;
 
-pub use hello::{Hello, HelloClient};
-pub use person::{Person, PersonHandler, PersonHandlerClient};
+pub use hello::{Hello, HelloClient, HelloClientTrait};
+pub use person::{Person, PersonHandler, PersonHandlerClient, PersonHandlerClientTrait};
