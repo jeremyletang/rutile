@@ -203,6 +203,7 @@ fn make_client_struct_decl(cx: &mut ExtCtxt, client_struct_name: &str) -> P<Item
             timeout_: ::std::time::Duration,
             client: T,
             service_name: String,
+            version_: String,
         }
     ).unwrap()
 }
@@ -244,6 +245,8 @@ fn make_client_struct_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_n
     let methods_ret_ter = methods.iter().map(|ref md| md.ret.clone()).into_iter();
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods).into_iter();
 
+    let version = (*LitBuilder::new().str(&*(version::make().into_string()))).clone();
+
     quote_item!(cx,
         impl<T> $client_struct_name_expr<T> where T: ::rpc::Client {
             pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
@@ -251,6 +254,7 @@ fn make_client_struct_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_n
                     timeout_: ::std::time::Duration::new(5, 0),
                     client: T::new(url.into()),
                     service_name: $service_name_lit.to_string(),
+                    version_: $version.to_string(),
                 }
             }
             pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
@@ -258,16 +262,24 @@ fn make_client_struct_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_n
                     timeout_: d,
                     client: T::new(url.into()),
                     service_name: $service_name_lit.to_string(),
+                    version_: $version.to_string(),
                 }
-            }
-            pub fn get_timeout(&self) -> ::std::time::Duration {
-                self.timeout_
             }
             pub fn get_service_name(&self) -> &str {
                 &self.service_name
             }
+            pub fn get_timeout(&self) -> ::std::time::Duration {
+                self.timeout_
+            }
             pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
                 self.timeout_ = new_d;
+                return self;
+            }
+            pub fn get_version(&self) -> &str {
+                &*self.version_
+            }
+            pub fn version(&mut self, new_v: &str) -> &mut $client_struct_name_expr<T> {
+                self.version_ = new_v.to_string();
                 return self;
             }
         }
@@ -295,9 +307,7 @@ fn make_client_trait_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_na
         impl<T> $client_trait_name_expr for $client_struct_name_expr<T> where T: ::rpc::Client {
             $(fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
                 -> Result<$methods_ret, String>
-                where C: ::rpc::Codec<$methods_param_bis>
-                    + ::rpc::Codec<$methods_ret_bis>
-                    {
+                where C: ::rpc::Codec<$methods_param_bis> + ::rpc::Codec<$methods_ret_bis> {
                 self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
             })*
         }
@@ -348,7 +358,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
 
     quote_item!(cx,
         impl$generics ::rpc::Handler for $ty $where_clauses {
-            default fn handler_name(&self) ->  &'static str{
+            default fn name(&self) ->  &'static str{
                 return $service_name_expr;
             }
             default fn service_name(&self) ->  &'static str{

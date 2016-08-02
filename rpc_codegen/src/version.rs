@@ -27,14 +27,23 @@ macro_rules! try_opt {
 
 #[derive(Debug)]
 pub struct Version {
-    version: String,
-    build: Option<String>,
+    pub version: String,
+    pub build: Option<String>,
 }
 
 pub fn make() -> Version {
     Version {
         version: ::std::env::var("CARGO_PKG_VERSION").unwrap(),
         build: make_build_number(),
+    }
+}
+
+impl Version {
+    pub fn into_string(self) -> String {
+        match self.build {
+            Some(b) => self.version + &*b,
+            None => self.version,
+        }
     }
 }
 

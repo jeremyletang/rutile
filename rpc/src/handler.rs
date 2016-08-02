@@ -18,7 +18,7 @@ pub enum ServeRequestError {
 }
 
 pub trait Handler: Send + Sync + 'static {
-    fn handler_name(&self) -> &'static str;
+    fn name(&self) -> &'static str;
     fn service_name(&self) -> &'static str;
     fn methods(&self) -> Vec<String>;
     fn codecs(&self) -> Vec<ContentType>;
