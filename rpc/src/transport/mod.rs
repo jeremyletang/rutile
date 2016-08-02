@@ -12,8 +12,9 @@ use handler::Handler;
 
 pub mod http_transport;
 
-pub trait TransportRequest: Read {
+pub trait TransportRequest {
     fn remote_addr(&self) -> SocketAddr;
+    fn body(&self) -> &str;
 }
 
 pub trait TransportResponse: Write {}

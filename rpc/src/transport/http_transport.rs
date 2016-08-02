@@ -85,19 +85,18 @@ impl Transport for HttpTransport {
     }
 }
 
-pub struct HttpTransportRequest<'a, 'k: 'a> {
-    req: Request<'a, 'k>,
+pub struct HttpTransportRequest {
+    remote_addr: SocketAddr,
+    body: String,
+
 }
 
-impl<'a, 'k> Read for HttpTransportRequest<'a, 'k> {
-    fn read(&mut self, data: &mut [u8]) -> io::Result<usize> {
-        self.req.read(data)
-    }
-}
-
-impl<'a, 'k> TransportRequest for HttpTransportRequest<'a, 'k> {
+impl TransportRequest for HttpTransportRequest {
     fn remote_addr(&self) -> SocketAddr {
-        self.req.remote_addr
+        self.remote_addr
+    }
+    fn body(&self) -> &str {
+        &*self.body
     }
 }
 
@@ -138,7 +137,7 @@ impl HttpHandler {
 }
 
 impl HyperHandler for HttpHandler {
-    fn handle<'a, 'k>(&'a self, req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
+    fn handle<'a, 'k>(&'a self, mut req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
         // add base headers
         make_base_headers(&mut res);
         // first check method
@@ -157,8 +156,11 @@ impl HyperHandler for HttpHandler {
             return make_bad_request_error(&format!("rutile-rpc: unrecognized Content-Type, {}", ct), res);
         }
 
+        let mut body = String::new();
+        let _ = req.read_to_string(&mut body);
+
         // make the HttpTransportRequest
-        let mut transport_request = HttpTransportRequest{req: req};
+        let mut transport_request = HttpTransportRequest{remote_addr: req.remote_addr, body: body};
         let mut transport_response = HttpTransportResponse{buf: vec![]};
 
         // FIXME(JEREMY): we need in the future to fin a better way to handle method handling from this side
@@ -178,7 +180,7 @@ impl HyperHandler for HttpHandler {
                         method_error = method_err;
                     },
                     ServeRequestError::NoMethodProvided(err_string) => {
-                        make_bad_request_error(&format!("rutile-rpc: {}", err_string), res);
+                        make_bad_request_error(&format!("rutile-rpc: no method provided, {}", err_string), res);
                         return;
                     },
                     ServeRequestError::InvalidBody(err_string) => {

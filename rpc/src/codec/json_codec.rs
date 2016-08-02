@@ -87,8 +87,8 @@ impl<T> Codec<T> for JsonCodec
         }
     }
 
-    fn decode_message(&self, raw_message: &String) -> Result<Box<Self::M>, String> {
-        match serde_json::from_str(&raw_message) {
+    fn decode_message(&self, raw_message: &str) -> Result<Box<Self::M>, String> {
+        match serde_json::from_str(raw_message) {
             Ok(t) => Ok(t),
             Err(e) => Err(e.description().to_string())
         }

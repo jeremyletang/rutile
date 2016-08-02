@@ -30,7 +30,7 @@ pub trait Codec<T>: Clone + CodecBase {
     }
     fn from_string(&self, &str) -> Result<T, String>;
     fn to_string(&self, &T) -> Result<String, String>;
-    fn decode_message(&self, &String) -> Result<Box<Self::M>, String>;
+    fn decode_message(&self, &str) -> Result<Box<Self::M>, String>;
     fn encode_message(&self, message: &T, method: &str, id: u64) -> Result<String, String>;
 }
 
@@ -39,7 +39,7 @@ pub trait CodecBase: Default {
     fn content_type(&self) -> ContentType;
 }
 
-pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &String, mut f: F, res: &mut TransportResponse)
+pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &str, mut f: F, res: &mut TransportResponse)
     -> Result<(), ServeRequestError>
     where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
     C: Codec<Request> + Codec<Response>  {

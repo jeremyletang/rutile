@@ -13,7 +13,6 @@ pub enum RpcError {
     Timeout,
 }
 
-
 pub trait Client : Default {
     fn new(addr: String) -> Self;
     fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)

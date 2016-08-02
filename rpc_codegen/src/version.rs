@@ -41,7 +41,7 @@ pub fn make() -> Version {
 impl Version {
     pub fn into_string(self) -> String {
         match self.build {
-            Some(b) => self.version + &*b,
+            Some(b) => self.version + "-" + &*b,
             None => self.version,
         }
     }
