@@ -5,7 +5,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(custom_derive, plugin, integer_atomics)]
+#![feature(custom_derive, plugin)]
 #![plugin(serde_macros)]
 
 extern crate typemap;

@@ -5,11 +5,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use std::io::{Read, Write};
+use std::io::Write;
 use std::net::SocketAddr;
 
-use codec::{CodecBase, Codec};
-use context::Context;
 use handler::Handler;
 
 pub trait TransportRequest {

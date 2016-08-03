@@ -15,12 +15,10 @@ use hyper::server::Handler as HyperHandler;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
-use rpc::{CodecBase, Codec, Message};
-// use rpc::{RpcError};
 use rpc::Context;
 use rpc::{Handler, ServeRequestError};
-use rpc::{ServerTransport, ListeningServerTransport, ClientTransport,
-    ListeningTransportHandler, TransportRequest, TransportResponse};
+use rpc::{ServerTransport, ListeningServerTransport, ListeningTransportHandler,
+    TransportRequest, TransportResponse};
 
 
 pub struct HttpServerTransport {

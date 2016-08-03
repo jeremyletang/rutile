@@ -6,7 +6,7 @@
 // except according to those terms.
 
 use hyper::client::Client as HyperClient;
-use std::io::{self, Read, Write};
+use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
