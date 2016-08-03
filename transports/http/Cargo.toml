@@ -1,0 +1,16 @@
+[package]
+name = "http_transport"
+version = "0.1.0"
+authors = ["Jeremy Letang <letang.jeremy@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Http transport for rutile"
+repository = "https://github.com/jeremyletan/rpc"
+documentation = "https://github.com/jeremyletang/rpc"
+keywords = ["rpc", "http"]
+include = ["Cargo.toml", "src/**/*.rs"]
+
+[dependencies]
+rpc = { version = "0.1.0", path = "../../rpc" }
+log = "0.3.6"
+env_logger = "0.3.3"
+hyper = "0.9.9"

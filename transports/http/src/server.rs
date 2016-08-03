@@ -5,46 +5,46 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use hyper::client::Client as HyperClient;
 use hyper::header::{ContentType, ContentLength, Allow};
 use hyper::method::Method;
 use hyper::net::HttpListener;
-use hyper::server::{Server, Listening, Request, Response, Fresh};
+use hyper::server::Server as HyperServer;
+use hyper::server::Listening as HyperListening;
+use hyper::server::{Request, Response, Fresh};
 use hyper::server::Handler as HyperHandler;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-use codec::{CodecBase, Codec, Message};
-use client::{Client, RpcError};
-use context::Context;
-use handler::{Handler, ServeRequestError};
-use transport::{Transport, ListeningTransport,
+use rpc::{CodecBase, Codec, Message};
+// use rpc::{RpcError};
+use rpc::Context;
+use rpc::{Handler, ServeRequestError};
+use rpc::{ServerTransport, ListeningServerTransport, ClientTransport,
     ListeningTransportHandler, TransportRequest, TransportResponse};
 
-pub struct HttpTransport {
-    server: Server<HttpListener>,
+
+pub struct HttpServerTransport {
+    server: HyperServer<HttpListener>,
     services: Vec<Box<Handler>>,
 }
 
-pub struct ListeningHttpTransport {
-    listening: Listening
+pub struct Listening {
+    listening: HyperListening
 }
 
-impl ListeningHttpTransport {
-    pub fn new(l: Listening) -> ListeningHttpTransport {
-        ListeningHttpTransport {
+impl Listening {
+    pub fn new(l: HyperListening) -> Listening {
+        Listening {
             listening: l
         }
     }
 }
 
-impl HttpTransport {
-    pub fn new(addr: &SocketAddr) -> Result<HttpTransport, ()> {
-        match Server::http(addr) {
+impl HttpServerTransport {
+    pub fn new(addr: &SocketAddr) -> Result<HttpServerTransport, ()> {
+        match HyperServer::http(addr) {
             Ok(s) => {
-                Ok(HttpTransport{
+                Ok(HttpServerTransport{
                     server: s,
                     services: vec![],
                 })
@@ -56,18 +56,18 @@ impl HttpTransport {
     }
 }
 
-impl ListeningTransport for ListeningHttpTransport {
+impl ListeningServerTransport for Listening {
     fn close(&mut self) -> Result<(), ()> {
         let _ = self.listening.close();
         return Ok(())
     }
 }
 
-impl Transport for HttpTransport {
+impl ServerTransport for HttpServerTransport {
     fn handle(mut self) -> ListeningTransportHandler {
         let services: Vec<Box<Handler>> = self.services.drain(..).collect();
         let listener = self.server.handle(HttpHandler::new(services)).unwrap();
-        ListeningTransportHandler::new(ListeningHttpTransport::new(listener))
+        ListeningTransportHandler::new(Listening::new(listener))
     }
 
     fn using<H>(&mut self, h: H) where H: Handler {
@@ -231,69 +231,4 @@ fn make_method_not_allowed_error<'a,>(mut res: Response<'a, Fresh>, method: Meth
     *res.status_mut() = ::hyper::status::StatusCode::MethodNotAllowed;
     let mut res = res.start().unwrap();
     res.write_all(body.as_bytes()).unwrap();
-}
-
-#[derive(Clone)]
-pub struct HttpClient {
-    client: Arc<HyperClient>,
-    url: String,
-    current_id: Arc<AtomicU64>
-}
-
-impl Default for HttpClient {
-    fn default() -> HttpClient {
-        HttpClient {
-            client: Arc::new(HyperClient::new()),
-            url: "127.0.0.1:8000".to_string(),
-            current_id: Arc::new(AtomicU64::new(1)),
-        }
-    }
-}
-
-impl Client for HttpClient {
-    fn new(url: String) -> HttpClient {
-        use std::time::Duration;
-        let mut client = HyperClient::new();
-        client.set_read_timeout(Some(Duration::new(2, 0)));
-        client.set_write_timeout(Some(Duration::new(2,0)));
-        HttpClient {
-            client: Arc::new(client),
-            url: url.clone(),
-            current_id: Arc::new(AtomicU64::new(1)),
-        }
-    }
-
-    fn call<Request, Response, C>(&self, endpoint: &str, ctx: &Context, req: &Request)
-        -> Result<Response, String>
-        where C: CodecBase + Codec<Request> + Codec<Response>,
-        Request: Clone, Response: Clone {
-        let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
-
-        let codec = C::default();
-        let message = match <C as Codec<Request>>::encode_message(&codec, req, endpoint, id) {
-            Ok(m) => m,
-            Err(_) => unreachable!()
-        };
-        let cc = self.client.clone();
-        let mut res = cc.post(&self.url)
-            .header(codec.content_type())
-            .body(&message)
-            .send();
-
-        match res {
-            Ok(ref mut ok_res) => {
-                let mut s = String::new();
-                let _ = ok_res.read_to_string(&mut s);
-                info!("response: {}", s);
-                let concrete: &Response = match <C as Codec<Response>>::decode_message(&codec, &s) {
-                    Ok(concrete) => unsafe {::std::mem::transmute(concrete.get_body())},
-                    Err(e) => return Err(e)
-                };
-                return Ok((*concrete).clone());
-            },
-            Err(e) => {
-                return Err(format!("{}", e));
-            },
-        }
-    }
 }

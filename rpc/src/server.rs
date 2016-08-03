@@ -8,10 +8,9 @@
 use std::net::SocketAddr;
 
 use handler::Handler;
-use transport::http_transport::HttpTransport;
-use transport::{Transport, ListeningTransportHandler};
+use transport::{ServerTransport, ListeningTransportHandler};
 
-pub struct Server<T = HttpTransport> where T: Transport {
+pub struct Server<T> where T: ServerTransport {
     transport: T,
 }
 
@@ -25,7 +24,7 @@ impl Listening {
     }
 }
 
-impl<T> Server<T> where T: Transport {
+impl<T> Server<T> where T: ServerTransport {
     pub fn new(transport: T) -> Server<T> {
         Server {
             transport: transport,
@@ -45,12 +44,5 @@ impl<T> Server<T> where T: Transport {
 
     pub fn has_method(&self, method: &str) -> bool {
         return self.transport.has_method(method)
-    }
-}
-
-impl Server<HttpTransport> {
-    pub fn http(addr: &SocketAddr) -> Result<Server<HttpTransport>, ()> {
-        HttpTransport::new(addr)
-            .map(Server::new)
     }
 }

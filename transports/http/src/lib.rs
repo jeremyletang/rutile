@@ -5,9 +5,15 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![feature(custom_derive, plugin, integer_atomics)]
+
+extern crate hyper;
+#[macro_use]
+extern crate log;
+extern crate rpc;
+
 mod client;
 mod server;
 
-pub use self::client::ClientTransport;
-pub use self::server::{ServerTransport, ListeningServerTransport,
-    TransportResponse, TransportRequest, ListeningTransportHandler};
+pub use server::HttpServerTransport;
+pub use client::HttpClientTransport;

@@ -5,31 +5,13 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use codec::{Codec, CodecBase};
+use codec::{CodecBase, Codec};
 use context::Context;
-use transport::ClientTransport;
 
-pub enum RpcError {
-    HostUnreachable,
-    Timeout,
-}
-
-pub struct Client<T> where T: ClientTransport {
-    tc: T,
-    url: String,
-}
-
-impl<T> Client<T> where T: ClientTransport {
-    pub fn new(url: String) -> Client<T> {
-        Client {
-            tc: T::new(url.clone()),
-            url: url,
-        }
-    }
+pub trait ClientTransport : Default {
+    fn new(addr: String) -> Self;
     fn call<Request, Response, C>(&self, ctx: &Context, endpoint: &str, req: &Request)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
-        Request: Clone, Response: Clone {
-        self.tc.call::<_, _, C>(ctx, endpoint, req)
-    }
+        Request: Clone, Response: Clone;
 }

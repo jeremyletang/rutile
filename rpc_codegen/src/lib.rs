@@ -199,7 +199,7 @@ fn make_client_struct_decl(cx: &mut ExtCtxt, client_struct_name: &str) -> P<Item
     let client_struct_name_expr = client_struct_name.to_ident();
 
     quote_item!(cx,
-        pub struct $client_struct_name_expr<T: ::rpc::Client = ::rpc::http_transport::HttpClient> {
+        pub struct $client_struct_name_expr<T: ::rpc::ClientTransport> {
             timeout_: ::std::time::Duration,
             client: T,
             service_name: String,
@@ -248,7 +248,7 @@ fn make_client_struct_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_n
     let version = (*LitBuilder::new().str(&*(version::make().into_string()))).clone();
 
     quote_item!(cx,
-        impl<T> $client_struct_name_expr<T> where T: ::rpc::Client {
+        impl<T> $client_struct_name_expr<T> where T: ::rpc::ClientTransport {
             pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
                 $client_struct_name_expr {
                     timeout_: ::std::time::Duration::new(5, 0),
@@ -304,11 +304,11 @@ fn make_client_trait_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_na
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods).into_iter();
 
     quote_item!(cx,
-        impl<T> $client_trait_name_expr for $client_struct_name_expr<T> where T: ::rpc::Client {
+        impl<T> $client_trait_name_expr for $client_struct_name_expr<T> where T: ::rpc::ClientTransport {
             $(fn $methods_idents<C>(&self, c: &::rpc::Context, req: &$methods_param)
                 -> Result<$methods_ret, String>
                 where C: ::rpc::Codec<$methods_param_bis> + ::rpc::Codec<$methods_ret_bis> {
-                self.client.call::<_, $methods_ret_ter, C>($method_name_lits, &c, req)
+                self.client.call::<_, $methods_ret_ter, C>(&c, $method_name_lits, req)
             })*
         }
     ).unwrap()
