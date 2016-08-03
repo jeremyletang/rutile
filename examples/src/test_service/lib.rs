@@ -2,6 +2,7 @@
 #![plugin(rpc_macros, serde_macros)]
 
 extern crate rpc;
+extern crate json_codec;
 
 mod hello;
 mod person;

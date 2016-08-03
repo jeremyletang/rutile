@@ -5,13 +5,22 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![feature(custom_derive, plugin)]
+#![plugin(serde_macros)]
+
+extern crate hyper;
+#[macro_use]
+extern crate log;
+extern crate serde;
+extern crate serde_json;
+extern crate rpc;
+
 use hyper::header::ContentType;
 use hyper::mime::{Mime, TopLevel, SubLevel};
+use rpc::{Codec, Message, CodecBase};
 use serde::{Serialize, Deserialize};
-use serde_json::{self, Value};
+use serde_json::Value;
 use std::error::Error;
-
-use codec::{Codec, Message, CodecBase};
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 pub struct Dummy;

@@ -11,8 +11,6 @@ use context::Context;
 use handler::ServeRequestError;
 use transport::TransportResponse;
 
-pub mod json_codec;
-
 pub trait Message: Clone + Sized {
     type I: Clone;
     fn get_method(&self) -> &str;
