@@ -9,7 +9,7 @@
 #![plugin(serde_macros)]
 
 extern crate typemap;
-extern crate mime;
+extern crate mime as mime_crate;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -22,10 +22,9 @@ mod transport;
 mod server;
 mod handler;
 
-pub mod ext {
-    pub use mime::Mime;
+pub mod mime {
+    pub use mime_crate::*;
 }
-
 pub use context::Context;
 pub use codec::{CodecBase, Codec, Message, __decode_and_call};
 pub use client::Client;

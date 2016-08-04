@@ -16,4 +16,3 @@ serde_macros = "0.7.12"
 rpc = { version = "0.1.0", path = "../../rpc" }
 log = "0.3.6"
 env_logger = "0.3.3"
-mime = "0.2.1"

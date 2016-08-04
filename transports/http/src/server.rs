@@ -12,7 +12,7 @@ use hyper::server::Server as HyperServer;
 use hyper::server::Listening as HyperListening;
 use hyper::server::{Request, Response, Fresh};
 use hyper::server::Handler as HyperHandler;
-use mime::Mime;
+use rpc::mime::Mime;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 

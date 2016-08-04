@@ -7,10 +7,8 @@
 
 use hyper::client::Client as HyperClient;
 use hyper::header::ContentType;
-use mime::Mime;
 use std::io::Read;
 use std::sync::Arc;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rpc::{ClientTransport, Context};

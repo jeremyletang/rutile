@@ -10,12 +10,11 @@
 
 #[macro_use]
 extern crate log;
-extern crate mime;
 extern crate serde;
 extern crate serde_json;
 extern crate rpc;
 
-use mime::{Mime, TopLevel, SubLevel};
+use rpc::mime::{Mime, TopLevel, SubLevel};
 use rpc::{Codec, Message, CodecBase};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
