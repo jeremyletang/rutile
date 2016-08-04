@@ -87,15 +87,20 @@ impl ServerTransport for HttpServerTransport {
 pub struct HttpTransportRequest {
     remote_addr: SocketAddr,
     body: String,
-
+    mime: Mime,
 }
 
 impl TransportRequest for HttpTransportRequest {
     fn remote_addr(&self) -> SocketAddr {
         self.remote_addr
     }
+
     fn body(&self) -> &str {
         &*self.body
+    }
+
+    fn mime(&self) -> Mime {
+        self.mime.clone()
     }
 }
 
@@ -118,19 +123,19 @@ impl TransportResponse for HttpTransportResponse {}
 
 pub struct HttpHandler {
     handlers: Vec<Box<Handler>>,
-    content_types: Vec<Mime>
+    mimes: Vec<Mime>
 }
 
 impl HttpHandler {
     pub fn new(handlers: Vec<Box<Handler>>) -> HttpHandler {
-        let mut ct = vec![];
-        for s in &handlers {
-            ct.append(&mut s.codecs());
+        let mut mimes = vec![];
+        for h in &handlers {
+            mimes.append(&mut h.codecs());
         }
-        ct.dedup();
+        mimes.dedup();
         HttpHandler {
             handlers: handlers,
-            content_types: ct,
+            mimes: mimes,
         }
     }
 }
@@ -151,15 +156,20 @@ impl HyperHandler for HttpHandler {
         }
         // check is content-type is accepted by one of the services
         let ct = req.headers.get::<ContentType>().unwrap().clone();
-        if !self.content_types.contains(&ct) {
+        if !self.mimes.contains(&ct) {
             return make_bad_request_error(&format!("rutile-rpc: unrecognized Content-Type, {}", ct), res);
         }
 
         let mut body = String::new();
         let _ = req.read_to_string(&mut body);
+        let ContentType(mime) = ct.clone();
 
         // make the HttpTransportRequest
-        let mut transport_request = HttpTransportRequest{remote_addr: req.remote_addr, body: body};
+        let mut transport_request = HttpTransportRequest {
+            remote_addr: req.remote_addr,
+            body: body,
+            mime: mime,
+        };
         let mut transport_response = HttpTransportResponse{buf: vec![]};
 
         // FIXME(JEREMY): we need in the future to fin a better way to handle method handling from this side

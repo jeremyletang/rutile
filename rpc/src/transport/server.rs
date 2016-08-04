@@ -8,11 +8,13 @@
 use std::io::Write;
 use std::net::SocketAddr;
 
+use mime::Mime;
 use handler::Handler;
 
 pub trait TransportRequest {
     fn remote_addr(&self) -> SocketAddr;
     fn body(&self) -> &str;
+    fn mime(&self) -> Mime;
 }
 
 pub trait TransportResponse: Write {}
