@@ -162,17 +162,21 @@ fn make_list_endpoints_fn_expr(cx: &mut ExtCtxt,
     quote_expr!(cx, vec![$($endpoint_names.to_string(),)*])
 }
 
-fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
-                                 mut codec_paths: Vec<Path>)
-                                 -> Stmt {
-    for p in &mut codec_paths {
+fn make_codec_default_method_path(codec_paths: Vec<Path>) -> Vec<Path> {
+    codec_paths.into_iter().map(|mut p| {
         p.segments.push(
             PathSegment{
                 identifier: "default".to_ident(),
                 parameters: PathParameters::none(),
         });
-    }
-    let paths_iter = codec_paths.into_iter();
+        return p;
+    }).collect()
+}
+
+fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
+                                 codec_paths: Vec<Path>)
+                                 -> Stmt {
+    let paths_iter = make_codec_default_method_path(codec_paths).into_iter();
     quote_stmt!(cx,
         vec![$($paths_iter().content_type(),)*]
     ).unwrap()
@@ -358,6 +362,8 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let list_supported_codecs_expr = make_supported_codecs_fn_expr(cx, codec_paths.clone());
 
     let where_clauses = generics.where_clause.clone();
+
+    let codecs = make_codec_default_method_path(codec_paths.clone()).into_iter();
 
     quote_item!(cx,
         impl$generics ::rpc::Handler for $ty $where_clauses {
