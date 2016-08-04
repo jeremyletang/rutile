@@ -178,23 +178,6 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
     ).unwrap()
 }
 
-fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
-                                service_name: &str,
-                                methods_raw: &Vec<MethodData>)
-                                -> Vec<P<Block>> {
-    methods_raw.iter()
-        .map(|ref md| {
-            let ref req = md.params[2];
-            let ref ret = md.ret;
-            let ref fn_identifier = md.id;
-            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
-            quote_block!(cx, {
-                let f = |ctx: &::rpc::Context, r: $req| -> $ret {self.$fn_identifier(ctx, r)};
-                ::rpc::__decode_and_call::<$req, $ret, _, ::json_codec::JsonCodec>(&ctx, &codec, body, f, res)
-            }).unwrap()
-        }).collect()
-}
-
 fn make_client_struct_decl(cx: &mut ExtCtxt, client_struct_name: &str) -> P<Item> {
     let client_struct_name_expr = client_struct_name.to_ident();
 
@@ -337,6 +320,26 @@ fn make_client(cx: &mut ExtCtxt,
     ]
 }
 
+fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
+                                service_name: &str,
+                                methods_raw: &Vec<MethodData>,
+                                codecs_paths: &Vec<Path>)
+                                -> Vec<P<Block>> {
+    methods_raw.iter()
+        .map(|ref md| {
+            let ref req = md.params[2];
+            let ref ret = md.ret;
+            let ref fn_identifier = md.id;
+            let ref codec = codecs_paths[0];
+            let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
+            quote_block!(cx, {
+                let f = |ctx: &::rpc::Context, r: $req| -> $ret {self.$fn_identifier(ctx, r)};
+                ::rpc::__decode_and_call::<$req, $ret, _, $codec>(&ctx, &codec, body, f, res)
+            }).unwrap()
+        }).collect()
+}
+
+
 fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                                 ty: &P<Ty>,
                                 generics: &Generics,
@@ -350,7 +353,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let list_endpoints_fn_expr = make_list_endpoints_fn_expr(cx, &service_name, &methods_raw);
 
     let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
-    let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw).into_iter();
+    let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw, codec_paths).into_iter();
 
     let list_supported_codecs_expr = make_supported_codecs_fn_expr(cx, codec_paths.clone());
 
