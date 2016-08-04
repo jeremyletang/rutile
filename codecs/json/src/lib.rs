@@ -8,15 +8,14 @@
 #![feature(custom_derive, plugin)]
 #![plugin(serde_macros)]
 
-extern crate hyper;
 #[macro_use]
 extern crate log;
+extern crate mime;
 extern crate serde;
 extern crate serde_json;
 extern crate rpc;
 
-use hyper::header::ContentType;
-use hyper::mime::{Mime, TopLevel, SubLevel};
+use mime::{Mime, TopLevel, SubLevel};
 use rpc::{Codec, Message, CodecBase};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
@@ -73,8 +72,8 @@ impl CodecBase for JsonCodec {
         }
     }
 
-    fn content_type(&self) -> ContentType {
-        ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![]))
+    fn content_type(&self) -> Mime {
+        Mime(TopLevel::Application, SubLevel::Json, vec![])
     }
 }
 

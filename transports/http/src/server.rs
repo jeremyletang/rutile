@@ -12,6 +12,7 @@ use hyper::server::Server as HyperServer;
 use hyper::server::Listening as HyperListening;
 use hyper::server::{Request, Response, Fresh};
 use hyper::server::Handler as HyperHandler;
+use mime::Mime;
 use std::io::{self, Read, Write};
 use std::net::SocketAddr;
 
@@ -117,7 +118,7 @@ impl TransportResponse for HttpTransportResponse {}
 
 pub struct HttpHandler {
     handlers: Vec<Box<Handler>>,
-    content_types: Vec<ContentType>,
+    content_types: Vec<Mime>
 }
 
 impl HttpHandler {

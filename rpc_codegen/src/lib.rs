@@ -370,7 +370,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             default fn methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            default fn codecs(&self) -> Vec<::rpc::ext_exports::ContentType> {
+            default fn codecs(&self) -> Vec<::rpc::ext::Mime> {
                 use ::rpc::CodecBase;
                 $list_supported_codecs_expr
             }

@@ -6,8 +6,11 @@
 // except according to those terms.
 
 use hyper::client::Client as HyperClient;
+use hyper::header::ContentType;
+use mime::Mime;
 use std::io::Read;
 use std::sync::Arc;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rpc::{ClientTransport, Context};
@@ -56,7 +59,7 @@ impl ClientTransport for HttpClientTransport {
         };
         let cc = self.client.clone();
         let mut res = cc.post(&self.url)
-            .header(codec.content_type())
+            .header(ContentType(codec.content_type()))
             .body(&message)
             .send();
 

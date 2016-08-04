@@ -9,11 +9,11 @@
 #![plugin(serde_macros)]
 
 extern crate typemap;
+extern crate mime;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate log;
-extern crate hyper;
 
 mod context;
 mod codec;
@@ -22,9 +22,8 @@ mod transport;
 mod server;
 mod handler;
 
-pub mod ext_exports {
-    pub use hyper::header::ContentType;
-    pub use hyper::client::Client;
+pub mod ext {
+    pub use mime::Mime;
 }
 
 pub use context::Context;

@@ -10,6 +10,7 @@
 extern crate hyper;
 #[macro_use]
 extern crate log;
+extern crate mime;
 extern crate rpc;
 
 mod client;
