@@ -21,7 +21,6 @@ use rpc::{Handler, ServeRequestError};
 use rpc::{ServerTransport, ListeningServerTransport, ListeningTransportHandler,
     TransportRequest, TransportResponse};
 
-
 pub struct HttpServerTransport {
     server: HyperServer<HttpListener>,
     services: Vec<Box<Handler>>,
