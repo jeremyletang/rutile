@@ -27,9 +27,7 @@ use rpc::mime::{Mime, TopLevel, SubLevel};
 pub struct Dummy;
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
-pub struct MsgpCodec {
-    body: String
-}
+pub struct MsgpCodec {}
 
 
 #[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
@@ -51,9 +49,7 @@ impl<T> Message for MsgpMessage<T> where T: Clone + Serialize + Deserialize{
 
 impl MsgpCodec {
     pub fn new() -> MsgpCodec {
-        MsgpCodec {
-            body: "".to_string()
-        }
+        MsgpCodec{}
     }
 }
 
@@ -103,11 +99,6 @@ impl<T> Codec<T> for MsgpCodec
             Ok(t) => Ok(Box::new(t)),
             Err(e) => Err(e.description().to_string())
         }
-
-        // match serde_json::from_str(raw_message) {
-        //     Ok(t) => Ok(t),
-        //     Err(e) => Err(e.description().to_string())
-        // }
     }
 
     fn encode(&self, body: &T, method: &str, id: u64) -> Result<Vec<u8>, String> {
