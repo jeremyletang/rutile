@@ -13,7 +13,7 @@ use handler::Handler;
 
 pub trait TransportRequest {
     fn remote_addr(&self) -> SocketAddr;
-    fn body(&self) -> &str;
+    fn body(&self) -> &[u8];
     fn mime(&self) -> Mime;
 }
 

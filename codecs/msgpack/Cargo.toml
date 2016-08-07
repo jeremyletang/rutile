@@ -1,0 +1,19 @@
+[package]
+name = "msgp_codec"
+version = "0.1.0"
+authors = ["Jeremy Letang <letang.jeremy@gmail.com>"]
+license = "MIT/Apache-2.0"
+description = "Message pack Codec for rutile "
+repository = "https://github.com/jeremyletan/rpc"
+documentation = "https://github.com/jeremyletang/rpc"
+keywords = ["rpc", "http"]
+include = ["Cargo.toml", "src/**/*.rs"]
+
+[dependencies]
+serde = "0.7.12"
+serde_macros = "0.7.12"
+rmp = "0.7.5"
+rmp-serde = "0.9.6"
+rpc = { version = "0.1.0", path = "../../rpc" }
+log = "0.3.6"
+env_logger = "0.3.3"
