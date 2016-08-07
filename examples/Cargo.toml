@@ -34,6 +34,9 @@ serde_json = "0.7.4"
 serde_macros = "0.7.12"
 log = "0.3.6"
 env_logger = "0.3.3"
+# transports
 http_transport = {version = "0.1.0", path = "../transports/http" }
+zmq_transport = {version = "0.1.0", path = "../transports/zmq" }
+# codecs
 json_codec = {version = "0.1.0", path = "../codecs/json" }
 msgp_codec = {version = "0.1.0", path = "../codecs/msgpack" }
