@@ -386,7 +386,8 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                               -> Result<(), ::rpc::ServeRequestError> {
                 use ::rpc::{Codec, CodecBase};
                 let body = req.body();
-                let codec = ::json_codec::JsonCodec::default();
+                // let codec = ::json_codec::JsonCodec::default();
+                let codec = ::msgp_codec::MsgpCodec::default();
                 let method = match codec.method(body) {
                     Ok(s) => s,
                     Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))

@@ -55,8 +55,8 @@ impl JsonCodec {
 }
 
 impl CodecBase for JsonCodec {
-    fn method(&self, body: &str) -> Result<String, String> {
-        let value: Value = match serde_json::from_str(body) {
+    fn method(&self, body: &[u8]) -> Result<String, String> {
+        let value: Value = match serde_json::from_slice(body) {
             Ok(v) => v,
             Err(e) => return Err(format!("invalid json, {}", e))
         };
@@ -80,34 +80,20 @@ impl<T> Codec<T> for JsonCodec
     where T: Serialize + Deserialize + Clone {
     type M = JsonMessage<T>;
 
-    fn from_string(&self, s: &str) -> Result<T, String> {
-        match serde_json::from_str(&s) {
+    fn decode(&self, raw_message: &[u8]) -> Result<Box<Self::M>, String> {
+        match serde_json::from_slice(raw_message) {
             Ok(t) => Ok(t),
             Err(e) => Err(e.description().to_string())
         }
     }
 
-    fn to_string(&self, t: &T) -> Result<String, String> {
-        match serde_json::to_string(&t) {
-            Ok(s) => Ok(s),
-            Err(e) => Err(e.description().to_string())
-        }
-    }
-
-    fn decode_message(&self, raw_message: &str) -> Result<Box<Self::M>, String> {
-        match serde_json::from_str(raw_message) {
-            Ok(t) => Ok(t),
-            Err(e) => Err(e.description().to_string())
-        }
-    }
-
-    fn encode_message(&self, body: &T, method: &str, id: u64) -> Result<String, String> {
+    fn encode(&self, body: &T, method: &str, id: u64) -> Result<Vec<u8>, String> {
         let json_message = JsonMessage{
             method: method.to_string(),
             body: Some(body.clone()),
             id: id,
         };
-        match serde_json::to_string(&json_message) {
+        match serde_json::to_vec(&json_message) {
             Ok(s) => Ok(s),
             Err(e) => Err(e.description().to_string())
         }

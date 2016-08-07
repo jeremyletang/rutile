@@ -6,7 +6,7 @@
 // except according to those terms.
 
 use hyper::client::Client as HyperClient;
-use hyper::header::ContentType;
+use hyper::header::{ContentType, ContentLength};
 use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -51,22 +51,26 @@ impl ClientTransport for HttpClientTransport {
         let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
 
         let codec = C::default();
-        let message = match <C as Codec<Request>>::encode_message(&codec, req, endpoint, id) {
+        let message = match <C as Codec<Request>>::encode(&codec, req, endpoint, id) {
             Ok(m) => m,
-            Err(_) => unreachable!()
+            Err(e) => {
+                println!("error from encode: {}", e);
+                unreachable!()
+            }
         };
         let cc = self.client.clone();
         let mut res = cc.post(&self.url)
             .header(ContentType(codec.content_type()))
-            .body(&message)
+            .header(ContentLength(message.len() as u64))
+            .body(&*message)
             .send();
 
         match res {
             Ok(ref mut ok_res) => {
-                let mut s = String::new();
-                let _ = ok_res.read_to_string(&mut s);
-                info!("response: {}", s);
-                let concrete: &Response = match <C as Codec<Response>>::decode_message(&codec, &s) {
+                let mut buf = Vec::new();
+                let _ = ok_res.read_to_end(&mut buf);
+                // info!("response: {}", buf);
+                let concrete: &Response = match <C as Codec<Response>>::decode(&codec, &buf) {
                     Ok(concrete) => unsafe {::std::mem::transmute(concrete.get_body())},
                     Err(e) => return Err(e)
                 };

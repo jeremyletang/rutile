@@ -85,7 +85,7 @@ impl ServerTransport for HttpServerTransport {
 
 pub struct HttpTransportRequest {
     remote_addr: SocketAddr,
-    body: String,
+    body: Vec<u8>,
     mime: Mime,
 }
 
@@ -94,7 +94,7 @@ impl TransportRequest for HttpTransportRequest {
         self.remote_addr
     }
 
-    fn body(&self) -> &str {
+    fn body(&self) -> &[u8] {
         &*self.body
     }
 
@@ -141,6 +141,8 @@ impl HttpHandler {
 
 impl HyperHandler for HttpHandler {
     fn handle<'a, 'k>(&'a self, mut req: Request<'a,'k>, mut res: Response<'a, Fresh>) {
+        info!("new request from: {}", req.remote_addr);
+
         // add base headers
         make_base_headers(&mut res);
         // first check method
@@ -159,8 +161,8 @@ impl HyperHandler for HttpHandler {
             return make_bad_request_error(&format!("rutile-rpc: unrecognized Content-Type, {}", ct), res);
         }
 
-        let mut body = String::new();
-        let _ = req.read_to_string(&mut body);
+        let mut body = Vec::new();
+        let _ = req.read_to_end(&mut body);
         let ContentType(mime) = ct.clone();
 
         // make the HttpTransportRequest

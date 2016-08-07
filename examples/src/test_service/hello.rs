@@ -1,14 +1,22 @@
-#![rpc_service(JsonCodec = "::json_codec::JsonCodec")]
+#![rpc_service(JsonCodec = "::msgp_codec::MsgpCodec")]
+// #![rpc_service(JsonCodec = "::json_codec::JsonCodec")]
 
 use rpc::Context;
 
 pub struct Hello;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HelloData {
+    pub s: String,
+    pub i: i32,
+    pub f: f32,
+}
+
 #[rpc_methods]
 impl Hello {
-    pub fn hello(&self, _: &::rpc::Context , req: String) -> Result<String, bool> {
-        println!("from world: {}", req);
-        Ok("hello".to_string())
+    pub fn hello(&self, _: &::rpc::Context , req: HelloData) -> Result<String, bool> {
+        println!("from hello fn: {:?}", req);
+        Ok("YEAH".to_string())
     }
 
     pub fn goodbye(&self, _: &Context, req: bool) -> Result<String, Vec<String>> {
