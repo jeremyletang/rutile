@@ -36,3 +36,4 @@ log = "0.3.6"
 env_logger = "0.3.3"
 http_transport = {version = "0.1.0", path = "../transports/http" }
 json_codec = {version = "0.1.0", path = "../codecs/json" }
+msgp_codec = {version = "0.1.0", path = "../codecs/msgpack" }

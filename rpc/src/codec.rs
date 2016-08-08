@@ -23,40 +23,38 @@ pub trait Message: Clone + Sized {
 
 pub trait Codec<T>: Clone + CodecBase {
     type M: Message + Clone;
-    fn extract_method_from_raw(&self, s: &String) -> Result<String, String> {
+    fn extract_method_from_raw(&self, s: &[u8]) -> Result<String, String> {
         return self.method(s);
     }
-    fn from_string(&self, &str) -> Result<T, String>;
-    fn to_string(&self, &T) -> Result<String, String>;
-    fn decode_message(&self, &str) -> Result<Box<Self::M>, String>;
-    fn encode_message(&self, message: &T, method: &str, id: u64) -> Result<String, String>;
+    fn decode(&self, &[u8]) -> Result<Box<Self::M>, String>;
+    fn encode(&self, message: &T, method: &str, id: u64) -> Result<Vec<u8>, String>;
 }
 
 pub trait CodecBase: Default {
-    fn method(&self, s: &str) -> Result<String, String>;
+    fn method(&self, s: &[u8]) -> Result<String, String>;
     fn content_type(&self) -> Mime;
 }
 
-pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &str, mut f: F, res: &mut TransportResponse)
+pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &[u8], mut f: F, res: &mut TransportResponse)
     -> Result<(), ServeRequestError>
     where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
     C: Codec<Request> + Codec<Response>  {
 
-    info!("message received: {}", body);
-    let message = match <C as Codec<Request>>::decode_message(codec, body) {
+    // info!("message received: {}", body);
+    let message = match <C as Codec<Request>>::decode(codec, body) {
         Ok(m) => m,
         Err(e) => return Err(ServeRequestError::InvalidBody(e))
     };
     info!("dispatching message to method {}", message.get_method());
     let res_raw = f(ctx, message.get_body().clone());
-    let response_string = match <C as Codec<Response>>::encode_message(codec, &res_raw, message.get_method(), message.get_id()) {
+    let response_string = match <C as Codec<Response>>::encode(codec, &res_raw, message.get_method(), message.get_id()) {
         Ok(m) => Ok(m),
         Err(e) => Err(e)
     };
 
     match response_string {
         Ok(s) => {
-            let _ = res.write_all(s.as_bytes());
+            let _ = res.write_all(&s);
             return Ok(());
         },
         Err(e) => Err(ServeRequestError::Custom(e))
