@@ -1,5 +1,5 @@
-#![rpc_service(JsonCodec = "::msgp_codec::MsgpCodec")]
-// #![rpc_service(JsonCodec = "::json_codec::JsonCodec")]
+#![rpc_service(MsgpCodec = "::msgp_codec::MsgpCodec",
+               JsonCode = "::json_codec::JsonCodec")]
 
 use rpc::Context;
 
