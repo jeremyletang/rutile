@@ -15,39 +15,17 @@ extern crate serde_json;
 extern crate rpc;
 
 use rpc::mime::{Mime, TopLevel, SubLevel};
-use rpc::{Codec, Message, CodecBase};
+use rpc::{Codec, CodecBase, DefaultMessage};
 use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::error::Error;
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
-pub struct JsonCodec {
-    body: String
-}
-
-
-#[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
-pub struct JsonMessage<T> where T: Clone + Serialize + Deserialize {
-    method: String,
-    body: Option<T>,
-    id: u64,
-}
-
-impl<T> Message for JsonMessage<T> where T: Clone + Serialize + Deserialize{
-    type I = T;
-    fn get_method(&self) -> &str { &self.method }
-    fn get_body(&self) -> &Self::I { &self.body.as_ref().unwrap() }
-    fn get_id(&self) -> u64 { self.id }
-    fn set_method(&mut self, method: &str) { self.method = method.to_string(); }
-    fn set_body(&mut self, body: &Self::I) { self.body = Some(body.clone()); }
-    fn set_id(&mut self, id: u64) { self.id = id; }
-}
+pub struct JsonCodec {}
 
 impl JsonCodec {
     pub fn new() -> JsonCodec {
-        JsonCodec {
-            body: "".to_string()
-        }
+        JsonCodec {}
     }
 }
 
@@ -75,22 +53,22 @@ impl CodecBase for JsonCodec {
 
 impl<T> Codec<T> for JsonCodec
     where T: Serialize + Deserialize + Clone {
-    type M = JsonMessage<T>;
+    type M = DefaultMessage<T>;
 
-    fn decode(&self, raw_message: &[u8]) -> Result<Box<Self::M>, String> {
-        match serde_json::from_slice(raw_message) {
+    fn decode(&self, buf: &[u8]) -> Result<Box<Self::M>, String> {
+        match serde_json::from_slice(buf) {
             Ok(t) => Ok(t),
             Err(e) => Err(e.description().to_string())
         }
     }
 
     fn encode(&self, body: &T, method: &str, id: u64) -> Result<Vec<u8>, String> {
-        let json_message = JsonMessage{
+        let m = DefaultMessage {
             method: method.to_string(),
             body: Some(body.clone()),
             id: id,
         };
-        match serde_json::to_vec(&json_message) {
+        match serde_json::to_vec(&m) {
             Ok(s) => Ok(s),
             Err(e) => Err(e.description().to_string())
         }

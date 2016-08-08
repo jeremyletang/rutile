@@ -26,7 +26,7 @@ pub mod mime {
     pub use mime_crate::*;
 }
 pub use context::Context;
-pub use codec::{CodecBase, Codec, Message, __decode_and_call};
+pub use codec::{CodecBase, Codec, Message, DefaultMessage, __decode_and_call};
 pub use client::Client;
 pub use server::{Listening, Server};
 pub use transport::{ServerTransport, ListeningServerTransport, ListeningTransportHandler,

@@ -20,29 +20,11 @@ use serde::{Serialize, Deserialize};
 use std::error::Error;
 use rmp_serde::{Serializer, Deserializer};
 
-use rpc::{Codec, CodecBase, Message};
+use rpc::{Codec, CodecBase, DefaultMessage};
 use rpc::mime::{Mime, TopLevel, SubLevel};
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct MsgpCodec {}
-
-
-#[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
-pub struct MsgpMessage<T> where T: Clone + Serialize + Deserialize {
-    method: String,
-    body: Option<T>,
-    id: u64,
-}
-
-impl<T> Message for MsgpMessage<T> where T: Clone + Serialize + Deserialize{
-    type I = T;
-    fn get_method(&self) -> &str { &self.method }
-    fn get_body(&self) -> &Self::I { &self.body.as_ref().unwrap() }
-    fn get_id(&self) -> u64 { self.id }
-    fn set_method(&mut self, method: &str) { self.method = method.to_string(); }
-    fn set_body(&mut self, body: &Self::I) { self.body = Some(body.clone()); }
-    fn set_id(&mut self, id: u64) { self.id = id; }
-}
 
 impl MsgpCodec {
     pub fn new() -> MsgpCodec {
@@ -85,11 +67,11 @@ impl CodecBase for MsgpCodec {
 
 impl<T> Codec<T> for MsgpCodec
     where T: Serialize + Deserialize + Clone {
-    type M = MsgpMessage<T>;
+    type M = DefaultMessage<T>;
 
-    fn decode(&self, raw_message: &[u8]) -> Result<Box<Self::M>, String> {
+    fn decode(&self, buf: &[u8]) -> Result<Box<Self::M>, String> {
         println!("decode raw message");
-        let cur = Cursor::new(&raw_message[..]);
+        let cur = Cursor::new(&buf[..]);
         let mut de = Deserializer::new(cur);
         let actual: Result<Self::M, _> = Deserialize::deserialize(&mut de);
         match actual {
@@ -99,13 +81,13 @@ impl<T> Codec<T> for MsgpCodec
     }
 
     fn encode(&self, body: &T, method: &str, id: u64) -> Result<Vec<u8>, String> {
-        let msgp_message = MsgpMessage{
+        let m = DefaultMessage {
             method: method.to_string(),
             body: Some(body.clone()),
             id: id,
         };
         let mut buf = vec![];
-        match msgp_message.serialize(&mut Serializer::new(&mut buf)) {
+        match m.serialize(&mut Serializer::new(&mut buf)) {
             Ok(_) => Ok(buf),
             Err(e) => Err(e.description().to_string())
         }

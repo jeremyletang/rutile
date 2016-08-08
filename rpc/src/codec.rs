@@ -6,6 +6,7 @@
 // except according to those terms.
 
 use mime::Mime;
+use serde::{Serialize, Deserialize};
 
 use context::Context;
 use handler::ServeRequestError;
@@ -26,13 +27,30 @@ pub trait Codec<T>: Clone + CodecBase {
     fn extract_method_from_raw(&self, s: &[u8]) -> Result<String, String> {
         return self.method(s);
     }
-    fn decode(&self, &[u8]) -> Result<Box<Self::M>, String>;
+    fn decode(&self, buf: &[u8]) -> Result<Box<Self::M>, String>;
     fn encode(&self, message: &T, method: &str, id: u64) -> Result<Vec<u8>, String>;
 }
 
 pub trait CodecBase: Default {
     fn method(&self, s: &[u8]) -> Result<String, String>;
     fn content_type(&self) -> Mime;
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
+pub struct DefaultMessage<T> where T: Clone + Serialize + Deserialize {
+    pub method: String,
+    pub body: Option<T>,
+    pub id: u64,
+}
+
+impl<T> Message for DefaultMessage<T> where T: Clone + Serialize + Deserialize {
+    type I = T;
+    fn get_method(&self) -> &str { &self.method }
+    fn get_body(&self) -> &Self::I { &self.body.as_ref().unwrap() }
+    fn get_id(&self) -> u64 { self.id }
+    fn set_method(&mut self, method: &str) { self.method = method.to_string(); }
+    fn set_body(&mut self, body: &Self::I) { self.body = Some(body.clone()); }
+    fn set_id(&mut self, id: u64) { self.id = id; }
 }
 
 pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &[u8], mut f: F, res: &mut TransportResponse)
