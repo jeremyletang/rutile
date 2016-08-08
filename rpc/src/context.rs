@@ -10,15 +10,30 @@ use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Context {
-    pub meta: HashMap<String, String>,
+    pub metas: HashMap<String, String>,
     pub ext: CloneMap,
 }
 
 impl Context {
     pub fn new() -> Context {
         Context {
-            meta: HashMap::new(),
+            metas: HashMap::new(),
             ext: CloneMap::custom(),
         }
+    }
+
+    pub fn with_metas(meta: HashMap<String, String>) -> Context {
+        Context {
+            metas: meta,
+            ext: CloneMap::custom(),
+        }
+    }
+
+    pub fn add_meta<S: Into<String>>(&mut self, k: S, v: S) {
+        self.metas.insert(k.into(), v.into());
+    }
+
+    pub fn get_meta<S: Into<String>>(&self, k: S) -> Option<&String> {
+        self.metas.get(&k.into())
     }
 }

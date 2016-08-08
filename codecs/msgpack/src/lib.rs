@@ -5,9 +5,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![feature(custom_derive, plugin)]
-#![plugin(serde_macros)]
-
 #[macro_use]
 extern crate log;
 extern crate serde;

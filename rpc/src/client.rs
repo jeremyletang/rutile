@@ -26,7 +26,7 @@ impl<T> Client<T> where T: ClientTransport {
             url: url,
         }
     }
-    fn call<Request, Response, C>(&self, ctx: &Context, endpoint: &str, req: &Request)
+    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
         Request: Clone, Response: Clone {

@@ -53,9 +53,9 @@ impl<T> Message for DefaultMessage<T> where T: Clone + Serialize + Deserialize {
     fn set_id(&mut self, id: u64) { self.id = id; }
 }
 
-pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &[u8], mut f: F, res: &mut TransportResponse)
+pub fn __decode_and_call<Request, Response, F, C>(ctx: Context, codec: &C, body: &[u8], mut f: F, res: &mut TransportResponse)
     -> Result<(), ServeRequestError>
-    where F: FnMut(&Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
+    where F: FnMut(Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
     C: Codec<Request> + Codec<Response>  {
 
     // info!("message received: {}", body);

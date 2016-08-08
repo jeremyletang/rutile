@@ -6,7 +6,7 @@
 // except according to those terms.
 
 use hyper::client::Client as HyperClient;
-use hyper::header::{ContentType, ContentLength};
+use hyper::header::{Headers, ContentType, ContentLength};
 use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -44,7 +44,7 @@ impl ClientTransport for HttpClient {
         }
     }
 
-    fn call<Request, Response, C>(&self,ctx: &Context, endpoint: &str, req: &Request)
+    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
         Request: Clone, Response: Clone {
@@ -58,8 +58,17 @@ impl ClientTransport for HttpClient {
                 unreachable!()
             }
         };
+
+        // set headers from ctx.metas
+        let mut hds = Headers::new();
+        for (ref k, ref v) in ctx.metas {
+            hds.set_raw(k.clone(), vec![v.clone().into_bytes()])
+        }
+
+        // create the client
         let cc = self.client.clone();
         let mut res = cc.post(&self.url)
+            .headers(hds)
             .header(ContentType(codec.content_type()))
             .header(ContentLength(message.len() as u64))
             .body(&*message)

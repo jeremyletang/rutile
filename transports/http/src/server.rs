@@ -176,9 +176,15 @@ impl HyperHandler for HttpHandler {
         // FIXME(JEREMY): we need in the future to fin a better way to handle method handling from this side
         let mut method_error = String::new();
 
+        // create context from headers
+        let mut ctx = Context::new();
+        for hv in req.headers.iter() {
+            ctx.metas.insert(hv.name().to_string(), hv.value_string());
+        }
+
         // then call the services to execute the method
         for h in &self.handlers {
-            match h.handle(Context::new(), &mut transport_request, &mut transport_response) {
+            match h.handle(ctx.clone(), &mut transport_request, &mut transport_response) {
                 Ok(_) => {
                     // write the response body
                     make_response(&transport_response.buf, res);

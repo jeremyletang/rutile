@@ -26,22 +26,22 @@ impl Default for TestEnum {
 
 #[rpc_methods]
 impl PersonHandler {
-    pub fn create(&self, _: &Context, req: Person) -> Result<TestEnum, bool> {
+    pub fn create(&self, _: Context, req: Person) -> Result<TestEnum, bool> {
         println!("from create: {:?}", req);
         Ok(TestEnum::First("thug life".to_string(), 32f32))
     }
 
-    pub fn delete(&self, _: &Context, req: Person) -> Result<TestEnum, bool> {
+    pub fn delete(&self, _: Context, req: Person) -> Result<TestEnum, bool> {
         println!("from create: {:?}", req);
         Ok(TestEnum::First("thug life".to_string(), 32f32))
     }
 
-    pub fn update(&self, _: &Context, req: Person) -> Result<TestEnum, bool> {
+    pub fn update(&self, _: Context, req: Person) -> Result<TestEnum, bool> {
         println!("from create: {:?}", req);
         Ok(TestEnum::First("thug life".to_string(), 32f32))
     }
 
-    pub fn list(&self, _: &Context, req: Person) -> Result<TestEnum, bool> {
+    pub fn list(&self, _: Context, req: Person) -> Result<TestEnum, bool> {
         println!("from create: {:?}", req);
         Ok(TestEnum::First("thug life".to_string(), 32f32))
     }

@@ -30,7 +30,7 @@ fn main() {
     (0..1).map(|_| {
         let cc = c.clone();
         thread::spawn(move || {
-            let res = cc.hello::<MsgpCodec>(&Context::new(), &HelloData{s: "helloword".to_string(), i: 42, f:54.});
+            let res = cc.hello::<MsgpCodec>(Context::new(), &HelloData{s: "helloword".to_string(), i: 42, f:54.});
             match res {
                 Ok(v) => info!("received: {:?}", v),
                 Err(e) => error!("client error: {}", e)

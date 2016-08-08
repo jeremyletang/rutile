@@ -9,9 +9,7 @@ documentation = "https://github.com/jeremyletang/rpc"
 keywords = ["rpc", "http"]
 include = ["Cargo.toml", "src/**/*.rs"]
 
-
 [dependencies]
-# clippy = "*"
 serde = "0.7.12"
 serde_json = "0.7.4"
 serde_macros = "0.7.12"

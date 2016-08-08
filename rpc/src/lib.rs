@@ -8,13 +8,12 @@
 #![feature(custom_derive, plugin)]
 #![plugin(serde_macros)]
 
-extern crate typemap;
+#[macro_use]
+extern crate log;
 extern crate mime as mime_crate;
 extern crate serde;
 extern crate serde_json;
-#[macro_use]
-extern crate log;
-
+extern crate typemap;
 mod context;
 mod codec;
 mod client;

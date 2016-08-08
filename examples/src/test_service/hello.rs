@@ -14,12 +14,12 @@ pub struct HelloData {
 
 #[rpc_methods]
 impl Hello {
-    pub fn hello(&self, _: &::rpc::Context , req: HelloData) -> Result<String, bool> {
+    pub fn hello(&self, _: ::rpc::Context , req: HelloData) -> Result<String, bool> {
         println!("from hello fn: {:?}", req);
         Ok("YEAH".to_string())
     }
 
-    pub fn goodbye(&self, _: &Context, req: bool) -> Result<String, Vec<String>> {
+    pub fn goodbye(&self, _: Context, req: bool) -> Result<String, Vec<String>> {
         println!("from create_person: {:?}", req);
         match req {
             true => Ok("true".to_string()),
