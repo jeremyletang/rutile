@@ -5,13 +5,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use hyper::header::ContentType;
+use mime::Mime;
 
 use context::Context;
 use handler::ServeRequestError;
 use transport::TransportResponse;
-
-pub mod json_codec;
 
 pub trait Message: Clone + Sized {
     type I: Clone;
@@ -36,7 +34,7 @@ pub trait Codec<T>: Clone + CodecBase {
 
 pub trait CodecBase: Default {
     fn method(&self, s: &str) -> Result<String, String>;
-    fn content_type(&self) -> ContentType;
+    fn content_type(&self) -> Mime;
 }
 
 pub fn __decode_and_call<Request, Response, F, C>(ctx: &Context, codec: &C, body: &str, mut f: F, res: &mut TransportResponse)

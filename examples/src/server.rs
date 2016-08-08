@@ -8,11 +8,11 @@ extern crate http_transport;
 
 use rpc::Server;
 use test_service::{Hello, PersonHandler};
-use http_transport::HttpServerTransport;
+use http_transport::HttpServer;
 
 fn main() {
     let _ = env_logger::init();
-    let mut server = Server::new(HttpServerTransport::new(&"127.0.0.1:9999".parse().unwrap()).unwrap());
+    let mut server = Server::http(&"127.0.0.1:9999".parse().unwrap());
     server.using(Hello{});
     server.using(PersonHandler{});
     info!("starting server on 127.0.0.1:9999");

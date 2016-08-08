@@ -5,13 +5,14 @@ extern crate log;
 extern crate env_logger;
 extern crate test_service;
 extern crate http_transport;
+extern crate json_codec;
 
 use std::thread;
 use std::sync::Arc;
 
 use test_service::{PersonHandlerClient, PersonHandlerClientTrait, Person};
 use rpc::Context;
-use rpc::json_codec::JsonCodec;
+use json_codec::JsonCodec;
 use http_transport::HttpClientTransport;
 
 type Client = PersonHandlerClient<HttpClientTransport>;

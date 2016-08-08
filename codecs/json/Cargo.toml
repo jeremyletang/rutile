@@ -1,20 +1,18 @@
 [package]
-name = "rpc"
+name = "json_codec"
 version = "0.1.0"
 authors = ["Jeremy Letang <letang.jeremy@gmail.com>"]
 license = "MIT/Apache-2.0"
-description = "codegen for rpc implementations"
+description = "Json Codec for rutile "
 repository = "https://github.com/jeremyletan/rpc"
 documentation = "https://github.com/jeremyletang/rpc"
 keywords = ["rpc", "http"]
 include = ["Cargo.toml", "src/**/*.rs"]
 
-
 [dependencies]
-# clippy = "*"
 serde = "0.7.12"
 serde_json = "0.7.4"
 serde_macros = "0.7.12"
-typemap = "0.3.3"
+rpc = { version = "0.1.0", path = "../../rpc" }
 log = "0.3.6"
-mime = "0.2.1"
+env_logger = "0.3.3"

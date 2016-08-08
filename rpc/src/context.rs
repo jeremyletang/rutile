@@ -5,19 +5,19 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-use hyper::header::Headers;
-use typemap::{CloneMap, TypeMap};
+use typemap::{CloneMap};
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct Context {
-    pub headers: Headers,
+    pub meta: HashMap<String, String>,
     pub ext: CloneMap,
 }
 
 impl Context {
     pub fn new() -> Context {
         Context {
-            headers: Headers::new(),
+            meta: HashMap::new(),
             ext: CloneMap::custom(),
         }
     }
