@@ -23,9 +23,6 @@ use rmp_serde::{Serializer, Deserializer};
 use rpc::{Codec, CodecBase, Message};
 use rpc::mime::{Mime, TopLevel, SubLevel};
 
-#[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
-pub struct Dummy;
-
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct MsgpCodec {}
 

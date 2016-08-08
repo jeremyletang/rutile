@@ -20,9 +20,6 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use std::error::Error;
 
-#[derive(Clone, Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
-pub struct Dummy;
-
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
 pub struct JsonCodec {
     body: String

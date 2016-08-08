@@ -6,7 +6,7 @@ extern crate json_codec;
 extern crate msgp_codec;
 
 mod hello;
-// mod person;
+mod person;
 
 pub use hello::{Hello, HelloData, HelloClient, HelloClientTrait};
-// pub use person::{Person, PersonHandler, PersonHandlerClient, PersonHandlerClientTrait};
+pub use person::{Person, PersonHandler, PersonHandlerClient, PersonHandlerClientTrait};

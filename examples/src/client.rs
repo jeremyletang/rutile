@@ -11,6 +11,7 @@ extern crate msgp_codec;
 use std::thread;
 use std::sync::Arc;
 
+
 // use test_service::{PersonHandlerClient, PersonHandlerClientTrait, Person};
 use test_service::{HelloClient, HelloData, HelloClientTrait};
 use http_transport::HttpClientTransport;
