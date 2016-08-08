@@ -15,15 +15,15 @@ use rpc::{ClientTransport, Context};
 use rpc::{CodecBase, Codec, Message};
 
 #[derive(Clone)]
-pub struct HttpClientTransport {
+pub struct HttpClient {
     client: Arc<HyperClient>,
     url: String,
     current_id: Arc<AtomicU64>
 }
 
-impl Default for HttpClientTransport {
-    fn default() -> HttpClientTransport {
-        HttpClientTransport {
+impl Default for HttpClient {
+    fn default() -> HttpClient {
+        HttpClient {
             client: Arc::new(HyperClient::new()),
             url: "127.0.0.1:8000".to_string(),
             current_id: Arc::new(AtomicU64::new(1)),
@@ -31,13 +31,13 @@ impl Default for HttpClientTransport {
     }
 }
 
-impl ClientTransport for HttpClientTransport {
-    fn new(url: String) -> HttpClientTransport {
+impl ClientTransport for HttpClient {
+    fn new(url: String) -> HttpClient {
         use std::time::Duration;
         let mut client = HyperClient::new();
         client.set_read_timeout(Some(Duration::new(2, 0)));
         client.set_write_timeout(Some(Duration::new(2,0)));
-        HttpClientTransport {
+        HttpClient {
             client: Arc::new(client),
             url: url.clone(),
             current_id: Arc::new(AtomicU64::new(1)),

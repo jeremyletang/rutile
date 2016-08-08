@@ -18,15 +18,15 @@ use rpc::Server;
 mod client;
 mod server;
 
-pub use server::HttpServerTransport;
-pub use client::HttpClientTransport;
+pub use server::HttpServer;
+pub use client::HttpClient;
 
-pub trait HttpServer {
+pub trait HttpTransport {
     fn http(addr: &SocketAddr) -> Self;
 }
 
-impl HttpServer for Server<HttpServerTransport> {
-    fn http(addr: &SocketAddr) -> Server<HttpServerTransport> {
-        return Server::new(HttpServerTransport::new(addr).unwrap());
+impl HttpTransport for Server<HttpServer> {
+    fn http(addr: &SocketAddr) -> Server<HttpServer> {
+        return Server::new(HttpServer::new(addr).unwrap());
     }
 }

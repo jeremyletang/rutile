@@ -14,13 +14,13 @@ use std::sync::Arc;
 
 // use test_service::{PersonHandlerClient, PersonHandlerClientTrait, Person};
 use test_service::{HelloClient, HelloData, HelloClientTrait};
-use http_transport::HttpClientTransport;
+use http_transport::HttpClient;
 // use json_codec::JsonCodec;
 use msgp_codec::MsgpCodec;
 use rpc::Context;
 
-type Client = HelloClient<HttpClientTransport>;
-// type Client = PersonHandlerClient<HttpClientTransport>;
+type Client = HelloClient<HttpClient>;
+// type Client = PersonHandlerClient<HttpClient>;
 
 fn main() {
     let _ = env_logger::init();

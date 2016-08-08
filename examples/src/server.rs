@@ -8,7 +8,7 @@ extern crate http_transport;
 
 use rpc::Server;
 use test_service::{Hello, PersonHandler};
-use http_transport::HttpServer;
+use http_transport::HttpTransport;
 
 fn main() {
     let _ = env_logger::init();

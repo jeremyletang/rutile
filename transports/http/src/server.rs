@@ -21,7 +21,7 @@ use rpc::{Handler, ServeRequestError};
 use rpc::{ServerTransport, ListeningServerTransport, ListeningTransportHandler,
     TransportRequest, TransportResponse};
 
-pub struct HttpServerTransport {
+pub struct HttpServer {
     server: HyperServer<HttpListener>,
     services: Vec<Box<Handler>>,
 }
@@ -38,11 +38,11 @@ impl Listening {
     }
 }
 
-impl HttpServerTransport {
-    pub fn new(addr: &SocketAddr) -> Result<HttpServerTransport, ()> {
+impl HttpServer {
+    pub fn new(addr: &SocketAddr) -> Result<HttpServer, ()> {
         match HyperServer::http(addr) {
             Ok(s) => {
-                Ok(HttpServerTransport{
+                Ok(HttpServer{
                     server: s,
                     services: vec![],
                 })
@@ -61,7 +61,7 @@ impl ListeningServerTransport for Listening {
     }
 }
 
-impl ServerTransport for HttpServerTransport {
+impl ServerTransport for HttpServer {
     fn handle(mut self) -> ListeningTransportHandler {
         let services: Vec<Box<Handler>> = self.services.drain(..).collect();
         let listener = self.server.handle(HttpHandler::new(services)).unwrap();
