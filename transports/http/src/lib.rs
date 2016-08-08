@@ -12,7 +12,7 @@ extern crate hyper;
 extern crate log;
 extern crate rpc;
 
-use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use rpc::Server;
 
 mod client;
@@ -22,11 +22,11 @@ pub use server::HttpServer;
 pub use client::HttpClient;
 
 pub trait HttpTransport {
-    fn http(addr: &SocketAddr) -> Self;
+    fn http<To: ToSocketAddrs>(addrs: To) -> Self;
 }
 
 impl HttpTransport for Server<HttpServer> {
-    fn http(addr: &SocketAddr) -> Server<HttpServer> {
+    fn http<To: ToSocketAddrs>(addr: To) -> Server<HttpServer> {
         return Server::new(HttpServer::new(addr).unwrap());
     }
 }

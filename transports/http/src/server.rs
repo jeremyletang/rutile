@@ -14,7 +14,7 @@ use hyper::server::{Request, Response, Fresh};
 use hyper::server::Handler as HyperHandler;
 use rpc::mime::Mime;
 use std::io::{self, Read, Write};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, ToSocketAddrs};
 
 use rpc::Context;
 use rpc::{Handler, ServeRequestError};
@@ -39,7 +39,7 @@ impl Listening {
 }
 
 impl HttpServer {
-    pub fn new(addr: &SocketAddr) -> Result<HttpServer, ()> {
+    pub fn new<To: ToSocketAddrs>(addr: To) -> Result<HttpServer, ()> {
         match HyperServer::http(addr) {
             Ok(s) => {
                 Ok(HttpServer{

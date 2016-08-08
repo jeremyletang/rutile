@@ -12,7 +12,7 @@ use http_transport::HttpTransport;
 
 fn main() {
     let _ = env_logger::init();
-    let mut server = Server::http(&"127.0.0.1:9999".parse().unwrap());
+    let mut server = Server::http("127.0.0.1:9999");
     server.using(Hello{});
     server.using(PersonHandler{});
     info!("starting server on 127.0.0.1:9999");
