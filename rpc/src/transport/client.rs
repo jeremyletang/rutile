@@ -8,7 +8,7 @@
 use codec::{CodecBase, Codec};
 use context::Context;
 
-pub trait ClientTransport : Default {
+pub trait TransportClient : Default {
     fn new(addr: String) -> Self;
     fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request)
         -> Result<Response, String>

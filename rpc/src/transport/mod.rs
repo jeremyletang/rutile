@@ -8,6 +8,6 @@
 mod client;
 mod server;
 
-pub use self::client::ClientTransport;
-pub use self::server::{ServerTransport, ListeningServerTransport,
+pub use self::client::TransportClient;
+pub use self::server::{TransportServer, TransportListeningServer,
     TransportResponse, TransportRequest, ListeningTransportHandler};

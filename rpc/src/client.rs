@@ -7,19 +7,19 @@
 
 use codec::{Codec, CodecBase};
 use context::Context;
-use transport::ClientTransport;
+use transport::TransportClient;
 
 pub enum RpcError {
     HostUnreachable,
     Timeout,
 }
 
-pub struct Client<T> where T: ClientTransport {
+pub struct Client<T> where T: TransportClient {
     tc: T,
     url: String,
 }
 
-impl<T> Client<T> where T: ClientTransport {
+impl<T> Client<T> where T: TransportClient {
     pub fn new(url: String) -> Client<T> {
         Client {
             tc: T::new(url.clone()),

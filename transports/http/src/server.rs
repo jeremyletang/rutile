@@ -18,7 +18,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 use rpc::Context;
 use rpc::{Handler, ServeRequestError};
-use rpc::{ServerTransport, ListeningServerTransport, ListeningTransportHandler,
+use rpc::{TransportServer, TransportListeningServer, ListeningTransportHandler,
     TransportRequest, TransportResponse};
 
 pub struct HttpServer {
@@ -54,14 +54,14 @@ impl HttpServer {
     }
 }
 
-impl ListeningServerTransport for Listening {
+impl TransportListeningServer for Listening {
     fn close(&mut self) -> Result<(), ()> {
         let _ = self.listening.close();
         return Ok(())
     }
 }
 
-impl ServerTransport for HttpServer {
+impl TransportServer for HttpServer {
     fn handle(mut self) -> ListeningTransportHandler {
         let services: Vec<Box<Handler>> = self.services.drain(..).collect();
         let listener = self.server.handle(HttpHandler::new(services)).unwrap();

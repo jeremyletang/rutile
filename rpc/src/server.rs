@@ -6,9 +6,9 @@
 // except according to those terms.
 
 use handler::Handler;
-use transport::{ServerTransport, ListeningTransportHandler};
+use transport::{TransportServer, ListeningTransportHandler};
 
-pub struct Server<T> where T: ServerTransport {
+pub struct Server<T> where T: TransportServer {
     transport: T,
 }
 
@@ -22,7 +22,7 @@ impl Listening {
     }
 }
 
-impl<T> Server<T> where T: ServerTransport {
+impl<T> Server<T> where T: TransportServer {
     pub fn new(transport: T) -> Server<T> {
         Server {
             transport: transport,

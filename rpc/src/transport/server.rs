@@ -19,22 +19,22 @@ pub trait TransportRequest {
 
 pub trait TransportResponse: Write {}
 
-pub trait ServerTransport {
+pub trait TransportServer {
     fn handle(self) -> ListeningTransportHandler;
     fn using<H>(&mut self, h: H) where H: Handler;
     fn has_method(&self, &str) -> bool;
 }
 
-pub trait ListeningServerTransport {
+pub trait TransportListeningServer {
     fn close(&mut self) -> Result<(), ()>;
 }
 
 pub struct ListeningTransportHandler {
-    listening_transport: Box<ListeningServerTransport>
+    listening_transport: Box<TransportListeningServer>
 }
 
 impl ListeningTransportHandler {
-    pub fn new<T>(lt: T) -> ListeningTransportHandler where T: 'static + ListeningServerTransport {
+    pub fn new<T>(lt: T) -> ListeningTransportHandler where T: 'static + TransportListeningServer {
         ListeningTransportHandler {
             listening_transport: Box::new(lt)
         }

@@ -28,6 +28,6 @@ pub use context::Context;
 pub use codec::{CodecBase, Codec, Message, DefaultMessage, __decode_and_call};
 pub use client::Client;
 pub use server::{Listening, Server};
-pub use transport::{ServerTransport, ListeningServerTransport, ListeningTransportHandler,
-    ClientTransport, TransportResponse, TransportRequest};
+pub use transport::{TransportServer, TransportListeningServer, ListeningTransportHandler,
+    TransportClient, TransportResponse, TransportRequest};
 pub use handler::{ServeRequestError, Handler};

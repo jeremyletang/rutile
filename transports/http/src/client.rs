@@ -11,7 +11,7 @@ use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use rpc::{ClientTransport, Context};
+use rpc::{TransportClient, Context};
 use rpc::{CodecBase, Codec, Message};
 
 #[derive(Clone)]
@@ -31,7 +31,7 @@ impl Default for HttpClient {
     }
 }
 
-impl ClientTransport for HttpClient {
+impl TransportClient for HttpClient {
     fn new(url: String) -> HttpClient {
         use std::time::Duration;
         let mut client = HyperClient::new();
