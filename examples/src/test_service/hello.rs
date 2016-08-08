@@ -14,8 +14,11 @@ pub struct HelloData {
 
 #[rpc_methods]
 impl Hello {
-    pub fn hello(&self, _: ::rpc::Context , req: HelloData) -> Result<String, bool> {
+    pub fn hello(&self, ctx: ::rpc::Context , req: HelloData) -> Result<String, bool> {
         println!("from hello fn: {:?}", req);
+        for (k, v) in ctx.metas {
+            println!("key: {}, value: {}", k, v);
+        }
         Ok("YEAH".to_string())
     }
 
