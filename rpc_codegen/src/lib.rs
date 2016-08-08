@@ -327,22 +327,57 @@ fn make_client(cx: &mut ExtCtxt,
 fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
                                 service_name: &str,
                                 methods_raw: &Vec<MethodData>,
-                                codecs_paths: &Vec<Path>)
+                                codec_path: &Path)
                                 -> Vec<P<Block>> {
     methods_raw.iter()
         .map(|ref md| {
             let ref req = md.params[2];
             let ref ret = md.ret;
             let ref fn_identifier = md.id;
-            let ref codec = codecs_paths[0];
+            let ref codec = codec_path;
             let en = service_name.to_string() + "." + &syntax::print::pprust::ident_to_string(md.id);
             quote_block!(cx, {
                 let f = |ctx: &::rpc::Context, r: $req| -> $ret {self.$fn_identifier(ctx, r)};
-                ::rpc::__decode_and_call::<$req, $ret, _, $codec>(&ctx, &codec, body, f, res)
+                return ::rpc::__decode_and_call::<$req, $ret, _, $codec>(&ctx, &codec, body, f, res)
             }).unwrap()
         }).collect()
 }
 
+fn append_default_to_codec_path(mut codec: Path) -> Path {
+    codec.segments.push(
+        PathSegment{
+            identifier: "default".to_ident(),
+            parameters: PathParameters::none(),
+    });
+    return codec;
+}
+
+fn make_mime_check_ifs(cx: &mut ExtCtxt,
+                       service_name: &str,
+                       methods_raw: &Vec<MethodData>,
+                       codecs_paths: Vec<Path>) -> Vec<P<Expr>> {
+
+    codecs_paths.iter()
+        .map(|ref codec_path| {
+            let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
+            let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw, codec_path).into_iter();
+            let codec_default = append_default_to_codec_path((*codec_path).clone());
+
+            quote_expr!(cx,
+            if mime == $codec_default().content_type() {
+                let codec = $codec_default();
+                let method = match codec.method(body) {
+                    Ok(s) => s,
+                    Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
+                };
+                match &*method {
+                    $($method_name_lits => $match_fn_exprs,)*
+                    _ => return Err(::rpc::ServeRequestError::UnrecognizedMethod(method.to_string()))
+                }
+            }).clone()
+        }).collect()
+
+}
 
 fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                                 ty: &P<Ty>,
@@ -356,14 +391,13 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let methods_raw = make_service_methods_list(cx, &methods);
     let list_endpoints_fn_expr = make_list_endpoints_fn_expr(cx, &service_name, &methods_raw);
 
-    let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
-    let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw, codec_paths).into_iter();
-
     let list_supported_codecs_expr = make_supported_codecs_fn_expr(cx, codec_paths.clone());
 
     let where_clauses = generics.where_clause.clone();
 
     let codecs = make_codec_default_method_path(codec_paths.clone()).into_iter();
+
+    let mime_check_ifs = make_mime_check_ifs(cx, &service_name, &methods_raw, codec_paths.clone()).into_iter();
 
     quote_item!(cx,
         impl$generics ::rpc::Handler for $ty $where_clauses {
@@ -386,16 +420,11 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                               -> Result<(), ::rpc::ServeRequestError> {
                 use ::rpc::{Codec, CodecBase};
                 let body = req.body();
+                let mime = req.mime();
                 // let codec = ::json_codec::JsonCodec::default();
-                let codec = ::msgp_codec::MsgpCodec::default();
-                let method = match codec.method(body) {
-                    Ok(s) => s,
-                    Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
-                };
-                match &*method {
-                    $($method_name_lits => $match_fn_exprs,)*
-                    _ => return Err(::rpc::ServeRequestError::UnrecognizedMethod(method.to_string()))
-                }
+                $($mime_check_ifs)*
+
+                return Err(::rpc::ServeRequestError::Custom("unkwnown content type".to_string()));
             }
         }
     )
