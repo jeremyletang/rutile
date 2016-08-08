@@ -7,9 +7,8 @@ extern crate test_service;
 extern crate http_transport;
 
 use rpc::Server;
-use test_service::{Hello, PersonHandler};
+// use test_service::{Hello, PersonHandler};
 use http_transport::HttpServer;
-use rpc::Server;
 use test_service::Hello;
 
 fn main() {
