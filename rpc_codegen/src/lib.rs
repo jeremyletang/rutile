@@ -176,9 +176,10 @@ fn make_codec_default_method_path(codec_paths: Vec<Path>) -> Vec<Path> {
 fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
                                  codec_paths: Vec<Path>)
                                  -> Stmt {
-    let paths_iter = make_codec_default_method_path(codec_paths).into_iter();
+    // let paths_iter = make_codec_default_method_path(codec_paths).into_iter();
+    let paths_iter = codec_paths.clone().into_iter();
     quote_stmt!(cx,
-        vec![$($paths_iter().content_type(),)*]
+        vec![$($paths_iter.content_type(),)*]
     ).unwrap()
 }
 
@@ -343,15 +344,6 @@ fn make_endpoints_match_fn_expr(cx: &mut ExtCtxt,
         }).collect()
 }
 
-fn append_default_to_codec_path(mut codec: Path) -> Path {
-    codec.segments.push(
-        PathSegment{
-            identifier: "default".to_ident(),
-            parameters: PathParameters::none(),
-    });
-    return codec;
-}
-
 fn make_mime_check_ifs(cx: &mut ExtCtxt,
                        service_name: &str,
                        methods_raw: &Vec<MethodData>,
@@ -361,11 +353,10 @@ fn make_mime_check_ifs(cx: &mut ExtCtxt,
         .map(|ref codec_path| {
             let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
             let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw, codec_path).into_iter();
-            let codec_default = append_default_to_codec_path((*codec_path).clone());
+            // let codec_default = append_default_to_codec_path((*codec_path).clone());
 
             quote_expr!(cx,
-            if mime == $codec_default().content_type() {
-                let codec = $codec_default();
+            if mime == codec.content_type() {
                 let method = match codec.method(body) {
                     Ok(s) => s,
                     Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
@@ -376,7 +367,12 @@ fn make_mime_check_ifs(cx: &mut ExtCtxt,
                 }
             }).clone()
         }).collect()
+}
 
+fn make_let_codec_stmt(cx: &mut ExtCtxt, codecs_paths: Vec<Path>) -> Vec<Stmt> {
+    codecs_paths.iter().map(|ref codec_path| {
+        quote_stmt!(cx, let codec = $codec_path;).unwrap()
+    }).collect()
 }
 
 fn make_service_trait_impl_item(cx: &mut ExtCtxt,
@@ -398,6 +394,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let codecs = make_codec_default_method_path(codec_paths.clone()).into_iter();
 
     let mime_check_ifs = make_mime_check_ifs(cx, &service_name, &methods_raw, codec_paths.clone()).into_iter();
+    let codec_stmts = make_let_codec_stmt(cx, codec_paths.clone()).into_iter();
 
     quote_item!(cx,
         impl$generics ::rpc::Handler for $ty $where_clauses {
@@ -422,7 +419,10 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 let body = req.body();
                 let mime = req.mime();
                 // let codec = ::json_codec::JsonCodec::default();
-                $($mime_check_ifs)*
+                $(
+                $codec_stmts
+                $mime_check_ifs
+                )*
 
                 return Err(::rpc::ServeRequestError::Custom("unkwnown content type".to_string()));
             }
