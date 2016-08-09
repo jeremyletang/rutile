@@ -44,13 +44,12 @@ impl TransportClient for HttpClient {
         }
     }
 
-    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request)
+    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request, codec: &C)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
         Request: Clone, Response: Clone {
         let id = self.current_id.clone().fetch_add(1, Ordering::SeqCst);
 
-        let codec = C::default();
         let message = match <C as Codec<Request>>::encode(&codec, req, endpoint, id) {
             Ok(m) => m,
             Err(e) => {

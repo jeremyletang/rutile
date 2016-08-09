@@ -18,13 +18,7 @@ use serde_json::Value;
 use std::error::Error;
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
-pub struct JsonCodec {}
-
-impl JsonCodec {
-    pub fn new() -> JsonCodec {
-        JsonCodec {}
-    }
-}
+pub struct JsonCodec;
 
 impl CodecBase for JsonCodec {
     fn method(&self, body: &[u8]) -> Result<String, String> {

@@ -129,7 +129,7 @@ impl HttpHandler {
     pub fn new(handlers: Vec<Box<Handler>>) -> HttpHandler {
         let mut mimes = vec![];
         for h in &handlers {
-            mimes.append(&mut h.codecs());
+            mimes.append(&mut h.mimes());
         }
         mimes.dedup();
         HttpHandler {

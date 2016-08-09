@@ -7,6 +7,7 @@
 
 use mime::Mime;
 
+use codec::CodecBase;
 use context::Context;
 use transport::{TransportRequest, TransportResponse};
 
@@ -21,7 +22,8 @@ pub trait Handler: Send + Sync + 'static {
     fn name(&self) -> &'static str;
     fn service_name(&self) -> &'static str;
     fn methods(&self) -> Vec<String>;
-    fn codecs(&self) -> Vec<Mime>;
+    fn codecs(&self) -> Vec<Box<CodecBase>>;
+    fn mimes(&self) -> Vec<Mime>;
     fn handle(&self, c: Context, req: &mut TransportRequest, res: &mut TransportResponse)
         -> Result<(), ServeRequestError>;
 }

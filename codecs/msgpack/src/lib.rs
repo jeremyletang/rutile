@@ -21,13 +21,7 @@ use rpc::{Codec, CodecBase, DefaultMessage};
 use rpc::mime::{Mime, TopLevel, SubLevel};
 
 #[derive(Clone, Default, Eq, PartialEq, Debug)]
-pub struct MsgpCodec {}
-
-impl MsgpCodec {
-    pub fn new() -> MsgpCodec {
-        MsgpCodec{}
-    }
-}
+pub struct MsgpCodec;
 
 impl CodecBase for MsgpCodec {
     fn method(&self, body: &[u8]) -> Result<String, String> {

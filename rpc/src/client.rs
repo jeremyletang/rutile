@@ -26,10 +26,10 @@ impl<T> Client<T> where T: TransportClient {
             url: url,
         }
     }
-    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request)
+    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request, codec: &C)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
         Request: Clone, Response: Clone {
-        self.tc.call::<_, _, C>(ctx, endpoint, req)
+        self.tc.call::<_, _, C>(ctx, endpoint, req, codec)
     }
 }
