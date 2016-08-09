@@ -10,7 +10,7 @@ use context::Context;
 
 pub trait TransportClient : Default {
     fn new(addr: String) -> Self;
-    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request)
+    fn call<Request, Response, C>(&self, ctx: Context, endpoint: &str, req: &Request, codec: &C)
         -> Result<Response, String>
         where C: CodecBase + Codec<Request> + Codec<Response>,
         Request: Clone, Response: Clone;

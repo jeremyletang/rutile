@@ -32,7 +32,7 @@ fn main() {
         thread::spawn(move || {
             let mut ctx = Context::new();
             ctx.add_meta("X-Custom-Header", "yolo");
-            let res = cc.hello::<MsgpCodec>(ctx, &HelloData{s: "helloword".to_string(), i: 42, f:54.});
+            let res = cc.hello(ctx, &MsgpCodec{}, &HelloData{s: "helloword".to_string(), i: 42, f:54.});
             match res {
                 Ok(v) => info!("received: {:?}", v),
                 Err(e) => error!("client error: {}", e)

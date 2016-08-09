@@ -31,7 +31,7 @@ pub trait Codec<T>: Clone + CodecBase {
     fn encode(&self, message: &T, method: &str, id: u64) -> Result<Vec<u8>, String>;
 }
 
-pub trait CodecBase: Default {
+pub trait CodecBase {
     fn method(&self, s: &[u8]) -> Result<String, String>;
     fn content_type(&self) -> Mime;
 }
@@ -58,7 +58,6 @@ pub fn __decode_and_call<Request, Response, F, C>(ctx: Context, codec: &C, body:
     where F: FnMut(Context, <<C as Codec<Request>>::M as Message>::I) -> Response,
     C: Codec<Request> + Codec<Response>  {
 
-    // info!("message received: {}", body);
     let message = match <C as Codec<Request>>::decode(codec, body) {
         Ok(m) => m,
         Err(e) => return Err(ServeRequestError::InvalidBody(e))

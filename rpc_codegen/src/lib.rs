@@ -208,7 +208,7 @@ fn make_client_trait_decl(cx: &mut ExtCtxt, client_struct_name: &str, methods: &
 
     quote_item!(cx,
         pub trait $client_trait_name_expr {
-            $(fn $methods_idents<C>(&self, c: ::rpc::Context, req: &$methods_param)
+            $(fn $methods_idents<C>(&self, ctx: ::rpc::Context, codec: &C, req: &$methods_param)
                 -> Result<$methods_ret, String>
                 where C: ::rpc::Codec<$methods_param_bis>
                     + ::rpc::Codec<$methods_ret_bis>;)*
@@ -292,10 +292,10 @@ fn make_client_trait_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_na
 
     quote_item!(cx,
         impl<T> $client_trait_name_expr for $client_struct_name_expr<T> where T: ::rpc::TransportClient {
-            $(fn $methods_idents<C>(&self, c: ::rpc::Context, req: &$methods_param)
+            $(fn $methods_idents<C>(&self, ctx: ::rpc::Context, codec: &C, req: &$methods_param)
                 -> Result<$methods_ret, String>
                 where C: ::rpc::Codec<$methods_param_bis> + ::rpc::Codec<$methods_ret_bis> {
-                self.client.call::<_, $methods_ret_ter, C>(c, $method_name_lits, req)
+                self.client.call::<_, $methods_ret_ter, C>(ctx, $method_name_lits, req, codec)
             })*
         }
     ).unwrap()
