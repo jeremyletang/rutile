@@ -179,6 +179,16 @@ fn make_supported_codecs_fn_expr(cx: &mut ExtCtxt,
     // let paths_iter = make_codec_default_method_path(codec_paths).into_iter();
     let paths_iter = codec_paths.clone().into_iter();
     quote_stmt!(cx,
+        vec![$(Box::new($paths_iter),)*]
+    ).unwrap()
+}
+
+fn make_supported_mimes_fn_expr(cx: &mut ExtCtxt,
+                                 codec_paths: Vec<Path>)
+                                 -> Stmt {
+    // let paths_iter = make_codec_default_method_path(codec_paths).into_iter();
+    let paths_iter = codec_paths.clone().into_iter();
+    quote_stmt!(cx,
         vec![$($paths_iter.content_type(),)*]
     ).unwrap()
 }
@@ -387,6 +397,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
     let methods_raw = make_service_methods_list(cx, &methods);
     let list_endpoints_fn_expr = make_list_endpoints_fn_expr(cx, &service_name, &methods_raw);
 
+    let list_supported_mimes_expr = make_supported_mimes_fn_expr(cx, codec_paths.clone());
     let list_supported_codecs_expr = make_supported_codecs_fn_expr(cx, codec_paths.clone());
 
     let where_clauses = generics.where_clause.clone();
@@ -407,8 +418,11 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
             default fn methods(&self) -> Vec<String> {
                 $list_endpoints_fn_expr
             }
-            default fn codecs(&self) -> Vec<::rpc::mime::Mime> {
+            default fn mimes(&self) -> Vec<::rpc::mime::Mime> {
                 use ::rpc::CodecBase;
+                $list_supported_mimes_expr
+            }
+            default fn codecs(&self) -> Vec<Box<::rpc::CodecBase>> {
                 $list_supported_codecs_expr
             }
             default fn handle(&self, ctx: ::rpc::Context,
