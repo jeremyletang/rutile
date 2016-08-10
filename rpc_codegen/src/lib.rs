@@ -363,15 +363,9 @@ fn make_mime_check_ifs(cx: &mut ExtCtxt,
         .map(|ref codec_path| {
             let method_name_lits = methods_raw_to_str_literals_list(&service_name, &methods_raw).into_iter();
             let match_fn_exprs = make_endpoints_match_fn_expr(cx, &service_name, &methods_raw, codec_path).into_iter();
-            // let codec_default = append_default_to_codec_path((*codec_path).clone());
 
             quote_expr!(cx,
             if mime == codec.content_type() {
-                let method = req.method();
-                // let method = match codec.method(body) {
-                //     Ok(s) => s,
-                //     Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
-                // };
                 match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
                     _ => unreachable!()
@@ -433,7 +427,8 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 use ::rpc::{Codec, CodecBase};
                 let body = req.body();
                 let mime = req.mime();
-                // let codec = ::json_codec::JsonCodec::default();
+                let method = req.method();
+
                 $(
                 $codec_stmts
                 $mime_check_ifs
