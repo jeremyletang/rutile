@@ -9,11 +9,6 @@ use codec::{Codec, CodecBase};
 use context::Context;
 use transport::TransportClient;
 
-pub enum RpcError {
-    HostUnreachable,
-    Timeout,
-}
-
 pub struct Client<T> where T: TransportClient {
     tc: T,
     url: String,

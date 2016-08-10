@@ -198,10 +198,10 @@ fn make_client_struct_decl(cx: &mut ExtCtxt, client_struct_name: &str) -> P<Item
 
     quote_item!(cx,
         pub struct $client_struct_name_expr<T: ::rpc::TransportClient> {
-            timeout_: ::std::time::Duration,
+            timeout: ::std::time::Duration,
             client: T,
             service_name: String,
-            version_: String,
+            version: String,
         }
     ).unwrap()
 }
@@ -249,35 +249,35 @@ fn make_client_struct_impl(cx: &mut ExtCtxt, service_name: &str, client_struct_n
         impl<T> $client_struct_name_expr<T> where T: ::rpc::TransportClient {
             pub fn new<S: Into<String>>(url: S) -> $client_struct_name_expr<T> {
                 $client_struct_name_expr {
-                    timeout_: ::std::time::Duration::new(5, 0),
+                    timeout: ::std::time::Duration::new(5, 0),
                     client: T::new(url.into()),
                     service_name: $service_name_lit.to_string(),
-                    version_: $version.to_string(),
+                    version: $version.to_string(),
                 }
             }
             pub fn with_timeout<S: Into<String>>(url: S, d: ::std::time::Duration) -> $client_struct_name_expr<T> {
                 $client_struct_name_expr {
-                    timeout_: d,
+                    timeout: d,
                     client: T::new(url.into()),
                     service_name: $service_name_lit.to_string(),
-                    version_: $version.to_string(),
+                    version: $version.to_string(),
                 }
             }
-            pub fn get_service_name(&self) -> &str {
+            pub fn service_name(&self) -> &str {
                 &self.service_name
             }
-            pub fn get_timeout(&self) -> ::std::time::Duration {
-                self.timeout_
+            pub fn timeout(&self) -> ::std::time::Duration {
+                self.timeout
             }
-            pub fn timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
-                self.timeout_ = new_d;
+            pub fn set_timeout(&mut self, new_d: ::std::time::Duration) -> &mut $client_struct_name_expr<T> {
+                self.timeout = new_d;
                 return self;
             }
-            pub fn get_version(&self) -> &str {
-                &*self.version_
+            pub fn version(&self) -> &str {
+                &*self.version
             }
-            pub fn version(&mut self, new_v: &str) -> &mut $client_struct_name_expr<T> {
-                self.version_ = new_v.to_string();
+            pub fn set_version(&mut self, new_v: &str) -> &mut $client_struct_name_expr<T> {
+                self.version = new_v.to_string();
                 return self;
             }
         }

@@ -20,6 +20,7 @@ mod client;
 mod transport;
 mod server;
 mod handler;
+pub mod error;
 
 pub mod mime {
     pub use mime_crate::*;

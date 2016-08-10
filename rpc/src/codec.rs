@@ -62,7 +62,6 @@ pub fn __decode_and_call<Request, Response, F, C>(ctx: Context, codec: &C, body:
         Ok(m) => m,
         Err(e) => return Err(ServeRequestError::InvalidBody(e))
     };
-    info!("dispatching message to method {}", message.get_method());
     let res_raw = f(ctx, message.get_body().clone());
     let response_string = match <C as Codec<Response>>::encode(codec, &res_raw, message.get_method(), message.get_id()) {
         Ok(m) => Ok(m),
