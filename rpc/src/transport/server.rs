@@ -15,6 +15,7 @@ pub trait TransportRequest {
     fn remote_addr(&self) -> SocketAddr;
     fn body(&self) -> &[u8];
     fn mime(&self) -> Mime;
+    fn method(&self) -> &str;
 }
 
 pub trait TransportResponse: Write {}

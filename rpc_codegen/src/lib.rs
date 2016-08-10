@@ -367,13 +367,14 @@ fn make_mime_check_ifs(cx: &mut ExtCtxt,
 
             quote_expr!(cx,
             if mime == codec.content_type() {
-                let method = match codec.method(body) {
-                    Ok(s) => s,
-                    Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
-                };
+                let method = req.method();
+                // let method = match codec.method(body) {
+                //     Ok(s) => s,
+                //     Err(e) => return Err(::rpc::ServeRequestError::NoMethodProvided(e))
+                // };
                 match &*method {
                     $($method_name_lits => $match_fn_exprs,)*
-                    _ => return Err(::rpc::ServeRequestError::UnrecognizedMethod(method.to_string()))
+                    _ => unreachable!()
                 }
             }).clone()
         }).collect()
@@ -438,7 +439,7 @@ fn make_service_trait_impl_item(cx: &mut ExtCtxt,
                 $mime_check_ifs
                 )*
 
-                return Err(::rpc::ServeRequestError::Custom("unkwnown content type".to_string()));
+                return Err(::rpc::ServeRequestError::Custom("Wow, how did you get there ?".to_string()));
             }
         }
     )

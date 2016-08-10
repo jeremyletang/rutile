@@ -12,14 +12,12 @@ use hyper::server::Server as HyperServer;
 use hyper::server::Listening as HyperListening;
 use hyper::server::{Request, Response, Fresh};
 use hyper::server::Handler as HyperHandler;
-use rpc::mime::Mime;
 use std::io::{self, Read, Write};
 use std::net::{SocketAddr, ToSocketAddrs};
 
-use rpc::Context;
-use rpc::{Handler, ServeRequestError};
+use rpc::mime::Mime;
 use rpc::{TransportServer, TransportListeningServer, ListeningTransportHandler,
-    TransportRequest, TransportResponse};
+    TransportRequest, TransportResponse, Handler, ServeRequestError, Context, CodecBase};
 
 pub struct HttpServer {
     server: HyperServer<HttpListener>,
@@ -87,6 +85,7 @@ pub struct HttpTransportRequest {
     remote_addr: SocketAddr,
     body: Vec<u8>,
     mime: Mime,
+    method: String,
 }
 
 impl TransportRequest for HttpTransportRequest {
@@ -100,6 +99,10 @@ impl TransportRequest for HttpTransportRequest {
 
     fn mime(&self) -> Mime {
         self.mime.clone()
+    }
+
+    fn method(&self) -> &str {
+        &self.method
     }
 }
 
@@ -122,21 +125,54 @@ impl TransportResponse for HttpTransportResponse {}
 
 pub struct HttpHandler {
     handlers: Vec<Box<Handler>>,
-    mimes: Vec<Mime>
+    codecs: Vec<Box<CodecBase>>
+}
+
+fn exists(codecs: &Vec<Box<CodecBase>>, codec: &Box<CodecBase>) -> bool {
+    for c in codecs {
+        if c.content_type() == codec.content_type() {
+            return true;
+        }
+    }
+    return false;
 }
 
 impl HttpHandler {
     pub fn new(handlers: Vec<Box<Handler>>) -> HttpHandler {
-        let mut mimes = vec![];
+        let mut codecs = vec![];
         for h in &handlers {
-            mimes.append(&mut h.mimes());
+            let new_codecs = h.codecs();
+            for c in new_codecs {
+                if !exists(&codecs, &c) {
+                    codecs.push(c);
+                }
+            }
         }
-        mimes.dedup();
+
         HttpHandler {
             handlers: handlers,
-            mimes: mimes,
+            codecs: codecs,
         }
     }
+}
+
+fn match_content_type(codecs: &Vec<Box<CodecBase>>, ct: &ContentType) -> bool {
+    let &ContentType(ref mime) = ct;
+    for c in codecs {
+        if &c.content_type() == mime {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn match_method(methods: &Vec<String>, method: &str) -> bool {
+    for m in methods {
+        if &*m == method {
+            return true;
+        }
+    }
+    return false;
 }
 
 impl HyperHandler for HttpHandler {
@@ -155,26 +191,42 @@ impl HyperHandler for HttpHandler {
             make_bad_request_error("rutile-rpc: missing Content-Type header", res);
             return
         }
+
         // check is content-type is accepted by one of the services
         let ct = req.headers.get::<ContentType>().unwrap().clone();
-        if !self.mimes.contains(&ct) {
+        // check if the content-type is supported by this server
+        if !match_content_type(&self.codecs, &ct) {
             return make_bad_request_error(&format!("rutile-rpc: unrecognized Content-Type, {}", ct), res);
         }
 
+        // get the requrest body
         let mut body = Vec::new();
         let _ = req.read_to_end(&mut body);
-        let ContentType(mime) = ct.clone();
 
-        // make the HttpTransportRequest
-        let mut transport_request = HttpTransportRequest {
+        // read method from the body
+        let ContentType(mime) = ct.clone();
+        let mut method = String::new();
+
+        for c in &self.codecs {
+            if c.content_type() == mime {
+                match c.method(&*body) {
+                    Ok(m) => {
+                        method = m;
+                        break
+                    },
+                    Err(e) => return make_bad_request_error(&format!("rutile-rpc: unable to read method for content-type {}, {}", mime, e), res),
+                }
+            }
+        }
+
+        // make the HttpTransport{Request,Response}
+        let mut tres = HttpTransportResponse{buf: vec![]};
+        let mut treq = HttpTransportRequest {
             remote_addr: req.remote_addr,
             body: body,
             mime: mime,
+            method: method.clone(),
         };
-        let mut transport_response = HttpTransportResponse{buf: vec![]};
-
-        // FIXME(JEREMY): we need in the future to fin a better way to handle method handling from this side
-        let mut method_error = String::new();
 
         // create context from headers
         let mut ctx = Context::new();
@@ -184,42 +236,39 @@ impl HyperHandler for HttpHandler {
 
         // then call the services to execute the method
         for h in &self.handlers {
-            match h.handle(ctx.clone(), &mut transport_request, &mut transport_response) {
-                Ok(_) => {
-                    // write the response body
-                    make_response(&transport_response.buf, res);
-                    return
-                },
-                Err(e) => match e {
-                    ServeRequestError::UnrecognizedMethod(method_err) => {
-                        // continue for now, we may have over services that can handle this method
-                        method_error = method_err;
+            if match_content_type(&h.codecs(), &ct) && match_method(&h.methods(), &method) {
+                match h.handle(ctx.clone(), &mut treq, &mut tres) {
+                    Ok(_) => {
+                        // write the response body
+                        make_response(&tres.buf, res);
+                        return
                     },
-                    ServeRequestError::NoMethodProvided(err_string) => {
-                        make_bad_request_error(&format!("rutile-rpc: no method provided, {}", err_string), res);
-                        return;
-                    },
-                    ServeRequestError::InvalidBody(err_string) => {
-                        // the method match but the body was Invalid
-                        // so we can return now
-                        make_bad_request_error(
-                            &format!("rutile-rpc: the body for the method {}, has an unexpected format: {}", "yolo", err_string), res);
-                        return;
-                    },
-                    ServeRequestError::Custom(err_string) => {
-                        // another kind of error occured,
-                        // just write a nice message for the caller
-                        make_bad_request_error(
-                            &format!("rutile-rpc: something strange append ... this may help: {}", err_string), res);
-                        return;
+                    Err(e) => match e {
+                        ServeRequestError::InvalidBody(err_string) => {
+                            // the method match but the body was Invalid
+                            // so we can return now
+                            make_bad_request_error(
+                                &format!("rutile-rpc: the body for the method {}, has an unexpected format: {}", method, err_string), res);
+                            return;
+                        },
+                        ServeRequestError::Custom(err_string) => {
+                            // another kind of error occured,
+                            // just write a nice message for the caller
+                            make_bad_request_error(
+                                &format!("rutile-rpc: something strange append ... this may help: {}", err_string), res);
+                            return;
+                        }
                     }
                 }
+            } else {
+                // nothing to do, this handler do not understand this codec or do not dispose this method
             }
+
         }
 
         // if we arrive here, the method was not found
         // just write an error
-        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", method_error, ct), res)
+        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", method, ct), res)
     }
 }
 

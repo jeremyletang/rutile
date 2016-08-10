@@ -47,7 +47,7 @@ impl CodecBase for MsgpCodec {
                     None => Err("invalid msgpack message, expected array".to_string()),
                 }
             },
-            Err(e) => Err("invalid msgpack message, unable to read value from the body".to_string()),
+            Err(e) => Err(format!("invalid msgpack message, unable to read value from the body, {}", e)),
         }
     }
 
@@ -61,7 +61,6 @@ impl<T> Codec<T> for MsgpCodec
     type M = DefaultMessage<T>;
 
     fn decode(&self, buf: &[u8]) -> Result<Box<Self::M>, String> {
-        println!("decode raw message");
         let cur = Cursor::new(&buf[..]);
         let mut de = Deserializer::new(cur);
         let actual: Result<Self::M, _> = Deserialize::deserialize(&mut de);

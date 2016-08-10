@@ -31,7 +31,7 @@ pub trait Codec<T>: Clone + CodecBase {
     fn encode(&self, message: &T, method: &str, id: u64) -> Result<Vec<u8>, String>;
 }
 
-pub trait CodecBase {
+pub trait CodecBase: Send + Sync + 'static {
     fn method(&self, s: &[u8]) -> Result<String, String>;
     fn content_type(&self) -> Mime;
 }

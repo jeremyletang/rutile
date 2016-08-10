@@ -26,7 +26,7 @@ fn main() {
     info!("calling server at address: 127.0.0.1:9999");
     let c = Arc::new(Client::new("http://127.0.0.1:9999/"));
 
-    (0..1).map(|_| {
+    (0..100).map(|_| {
         let cc = c.clone();
         thread::spawn(move || {
             let mut ctx = Context::new();

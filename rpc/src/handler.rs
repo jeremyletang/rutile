@@ -12,8 +12,6 @@ use context::Context;
 use transport::{TransportRequest, TransportResponse};
 
 pub enum ServeRequestError {
-    UnrecognizedMethod(String),
-    NoMethodProvided(String),
     InvalidBody(String),
     Custom(String),
 }
