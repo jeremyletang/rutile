@@ -268,7 +268,7 @@ impl HyperHandler for HttpHandler {
 
         // if we arrive here, the method was not found
         // just write an error
-        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", method, ct), res)
+        make_bad_request_error(&format!("rutile-rpc: unrecognized method {} for Content-Type {}", method, ct), res);
     }
 }
 

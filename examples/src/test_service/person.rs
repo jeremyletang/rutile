@@ -17,13 +17,6 @@ pub enum TestEnum {
     Second(Vec<String>, String),
 }
 
-impl Default for TestEnum {
-    fn default() -> TestEnum {
-        return TestEnum::First("".to_string(), 42f32);
-    }
-}
-
-
 #[rpc_methods]
 impl PersonHandler {
     pub fn create(&self, _: Context, req: Person) -> Result<TestEnum, bool> {
